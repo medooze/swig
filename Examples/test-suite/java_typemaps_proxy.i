@@ -119,11 +119,26 @@ public:
   void const_member_method(const ConstWithout *p) const {}
   const ConstWithout * const_var;
   const ConstWithout * const var_const;
-private:
-  ConstWithout& operator=(const ConstWithout &);
 };
 const ConstWithout * global_constwithout = 0;
 void global_method_constwithout(const ConstWithout *p) {}
 %}
 
 
+// $imfuncname substitution
+%typemap(javaout) int imfuncname_test {
+    return $moduleJNI.$imfuncname(swigCPtr, this) + 123;
+  }
+%typemap(javaout) int imfuncname_static_test {
+    return $moduleJNI.$imfuncname() + 234;
+  }
+%typemap(javaout) int imfuncname_global_test {
+    return $moduleJNI.$imfuncname() + 345;
+  }
+%inline %{
+struct ProxyA {
+  int imfuncname_test() { return 0; }
+  static int imfuncname_static_test() { return 0; }
+};
+int imfuncname_global_test() { return 0; }
+%}

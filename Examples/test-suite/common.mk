@@ -88,7 +88,6 @@ CPP_TEST_BROKEN += \
 	extend_variable \
 	li_boost_shared_ptr_template \
 	nested_private \
-	rename_camel \
 	template_default_pointer \
 	template_private_assignment \
 	template_expr \
@@ -102,6 +101,7 @@ C_TEST_BROKEN += \
 # C++ test cases. (Can be run individually using: make testcase.cpptest)
 CPP_TEST_CASES += \
 	abstract_access \
+	abstract_basecast \
 	abstract_inherit \
 	abstract_inherit_ok \
 	abstract_signature \
@@ -117,6 +117,7 @@ CPP_TEST_CASES += \
 	anonymous_bitfield \
 	apply_signed_char \
 	apply_strings \
+	argcargvtest \
 	argout \
 	array_member \
 	array_typedef_memberin \
@@ -134,6 +135,7 @@ CPP_TEST_CASES += \
 	char_binary \
 	char_strings \
 	chartest \
+	class_case \
 	class_scope_namespace \
 	class_forward \
 	class_ignore \
@@ -141,6 +143,7 @@ CPP_TEST_CASES += \
 	compactdefaultargs \
 	const_const_2 \
 	constant_directive \
+	constant_expr \
 	constant_pointers \
 	constover \
 	constructor_copy \
@@ -211,10 +214,12 @@ CPP_TEST_CASES += \
 	director_protected_overloaded \
 	director_redefined \
 	director_ref \
+	director_simple \
 	director_smartptr \
 	director_thread \
 	director_unroll \
 	director_using \
+	director_using_member_scopes \
 	director_void \
 	director_wombat \
 	disown \
@@ -232,6 +237,7 @@ CPP_TEST_CASES += \
 	evil_diamond_ns \
 	evil_diamond_prop \
 	exception_classname \
+	exception_memory_leak \
 	exception_order \
 	extend \
 	extend_constructor_destructor \
@@ -303,6 +309,7 @@ CPP_TEST_CASES += \
 	multiple_inheritance_abstract \
 	multiple_inheritance_interfaces \
 	multiple_inheritance_nspace \
+	multiple_inheritance_overload \
 	multiple_inheritance_shared_ptr \
 	name_cxx \
 	name_warnings \
@@ -313,6 +320,7 @@ CPP_TEST_CASES += \
 	namespace_forward_declaration \
 	namespace_nested \
 	namespace_spaces \
+	namespace_struct \
 	namespace_template \
 	namespace_typedef_class \
 	namespace_typemap \
@@ -371,6 +379,7 @@ CPP_TEST_CASES += \
 	rename2 \
 	rename3 \
 	rename4 \
+	rename_camel \
 	rename_rstrip_encoder \
 	rename_scope \
 	rename_simple \
@@ -547,6 +556,8 @@ CPP_TEST_CASES += \
 	using_directive_and_declaration_forward \
 	using_extend \
 	using_inherit \
+	using_member \
+	using_member_scopes \
 	using_namespace \
 	using_namespace_loop \
 	using_pointers \
@@ -628,6 +639,7 @@ endif
 ifdef HAS_DOXYGEN
 DOXYGEN_TEST_CASES += \
 	doxygen_alias \
+	doxygen_autodoc_docstring \
 	doxygen_basic_notranslate \
 	doxygen_basic_translate \
 	doxygen_basic_translate_style2 \
@@ -688,8 +700,10 @@ C_TEST_CASES += \
 	c_delete \
 	c_delete_function \
 	char_constant \
+	command_line_define \
 	const_const \
-	constant_expr \
+	constant_expr_c \
+	contract_c \
 	default_args_c \
 	empty_c \
 	enums \
@@ -757,10 +771,12 @@ MULTI_CPP_TEST_CASES += \
 # Custom tests - tests with additional commandline options
 wallkw.cpptest: SWIGOPT += -Wallkw
 preproc_include.ctest: SWIGOPT += -includeall
+command_line_define.ctest: SWIGOPT += -DFOO
 
 # Allow modules to define temporarily failing tests.
 C_TEST_CASES := $(filter-out $(FAILING_C_TESTS),$(C_TEST_CASES))
 CPP_TEST_CASES := $(filter-out $(FAILING_CPP_TESTS),$(CPP_TEST_CASES))
+CPP11_TEST_CASES := $(filter-out $(FAILING_CPP_TESTS),$(CPP11_TEST_CASES))
 MULTI_CPP_TEST_CASES := $(filter-out $(FAILING_MULTI_CPP_TESTS),$(MULTI_CPP_TEST_CASES))
 
 
@@ -773,6 +789,7 @@ BROKEN_TEST_CASES = 	$(CPP_TEST_BROKEN:=.cpptest) \
 			$(C_TEST_BROKEN:=.ctest)
 
 ALL_CLEAN = 		$(CPP_TEST_CASES:=.clean) \
+			$(CPP11_TEST_CASES:=.clean) \
 			$(C_TEST_CASES:=.clean) \
 			$(MULTI_CPP_TEST_CASES:=.clean) \
 			$(CPP_TEST_BROKEN:=.clean) \
@@ -801,6 +818,8 @@ check-cpp: $(CPP_TEST_CASES:=.cpptest)
 
 check-cpp11: $(CPP11_TEST_CASES:=.cpptest)
 
+check-multicpp: $(MULTI_CPP_TEST_CASES:=.multicpptest)
+
 ifdef HAS_DOXYGEN
 check-doxygen: $(DOXYGEN_TEST_CASES:=.cpptest)
 endif
@@ -818,6 +837,13 @@ endif
 partialcheck:
 	$(MAKE) check CC=true CXX=true LDSHARED=true CXXSHARED=true RUNTOOL=true COMPILETOOL=true
 
+swig_and_compile_cpp_helper = \
+	$(MAKE) -f $(top_builddir)/$(EXAMPLES)/Makefile SRCDIR='$(SRCDIR)' CXXSRCS='$(CXXSRCS)' \
+	SWIG_LIB_DIR='$(SWIG_LIB_DIR)' SWIGEXE='$(SWIGEXE)' \
+	LIBS='$(LIBS)' INCLUDES='$(INCLUDES)' SWIGOPT=$(2) NOLINK=true \
+	TARGET="$(TARGETPREFIX)$(1)$(TARGETSUFFIX)" INTERFACEDIR='$(INTERFACEDIR)' INTERFACE="$(1).i" \
+	$(LANGUAGE)$(VARIANT)_cpp
+
 swig_and_compile_cpp =  \
 	$(MAKE) -f $(top_builddir)/$(EXAMPLES)/Makefile SRCDIR='$(SRCDIR)' CXXSRCS='$(CXXSRCS)' \
 	SWIG_LIB_DIR='$(SWIG_LIB_DIR)' SWIGEXE='$(SWIGEXE)' \
@@ -834,11 +860,7 @@ swig_and_compile_c =  \
 
 swig_and_compile_multi_cpp = \
 	for f in `cat $(top_srcdir)/$(EXAMPLES)/$(TEST_SUITE)/$*.list` ; do \
-	  $(MAKE) -f $(top_builddir)/$(EXAMPLES)/Makefile SRCDIR='$(SRCDIR)' CXXSRCS='$(CXXSRCS)' \
-	  SWIG_LIB_DIR='$(SWIG_LIB_DIR)' SWIGEXE='$(SWIGEXE)' \
-	  LIBS='$(LIBS)' INCLUDES='$(INCLUDES)' SWIGOPT='$(SWIGOPT)' NOLINK=true \
-	  TARGET="$(TARGETPREFIX)$${f}$(TARGETSUFFIX)" INTERFACEDIR='$(INTERFACEDIR)' INTERFACE="$$f.i" \
-	  $(LANGUAGE)$(VARIANT)_cpp; \
+	  $(call swig_and_compile_cpp_helper,$${f},'$(SWIGOPT)'); \
 	done
 
 swig_and_compile_external =  \

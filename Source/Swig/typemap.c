@@ -1257,6 +1257,59 @@ static String *typemap_warn(const_String_or_char_ptr tmap_method, Parm *p) {
 }
 
 /* -----------------------------------------------------------------------------
+ * typemap_merge_fragment_kwargs()
+ *
+ * If multiple 'fragment' attributes are provided to a typemap, combine them by
+ * concatenating with commas.
+ * ----------------------------------------------------------------------------- */
+
+static void typemap_merge_fragment_kwargs(Parm *kw) {
+  Parm *reattach_kw = NULL;
+  Parm *prev_kw = NULL;
+  Parm *next_kw = NULL;
+  String *fragment = NULL;
+  while (kw) {
+    next_kw = nextSibling(kw);
+    if (Strcmp(Getattr(kw, "name"), "fragment") == 0) {
+      String *thisfragment = Getattr(kw, "value");
+      String *kwtype = Getattr(kw, "type");
+      if (!fragment) {
+	/* First fragment found; it should remain in the list */
+	fragment = thisfragment;
+	prev_kw = kw;
+      } else {
+	/* Concatenate to previously found fragment */
+	Printv(fragment, ",", thisfragment, NULL);
+	reattach_kw = prev_kw;
+      }
+      if (kwtype) {
+        String *mangle = Swig_string_mangle(kwtype);
+        Append(fragment, mangle);
+        Delete(mangle);
+        /* Remove 'type' from kwargs so it's not duplicated later */
+        Setattr(kw, "type", NULL);
+      }
+    } else {
+      /* Not a fragment */
+      if (reattach_kw) {
+	/* Update linked list to remove duplicate fragment */
+	DohIncref(kw);
+	set_nextSibling(reattach_kw, kw);
+	set_previousSibling(kw, reattach_kw);
+	Delete(reattach_kw);
+	reattach_kw = NULL;
+      }
+      prev_kw = kw;
+    }
+    kw = next_kw;
+  }
+  if (reattach_kw) {
+    /* Update linked list to remove duplicate fragment */
+    set_nextSibling(reattach_kw, kw);
+  }
+}
+
+/* -----------------------------------------------------------------------------
  * Swig_typemap_lookup()
  *
  * Attach one or more typemaps to a node and optionally generate the typemap contents
@@ -1390,7 +1443,6 @@ static String *Swig_typemap_lookup_impl(const_String_or_char_ptr tmap_method, No
      * ie, not use the typemap code, otherwise both f and actioncode must be non null. */
     if (actioncode) {
       const String *result_equals = NewStringf("%s = ", Swig_cresult_name());
-      clname = Copy(actioncode);
       /* check that the code in the typemap can be used in this optimal way.
        * The code should be in the form "result = ...;\n". We need to extract
        * the "..." part. This may not be possible for various reasons, eg
@@ -1398,22 +1450,17 @@ static String *Swig_typemap_lookup_impl(const_String_or_char_ptr tmap_method, No
        * hack and circumvents the normal requirement for a temporary variable 
        * to hold the result returned from a wrapped function call.
        */
-      if (Strncmp(clname, result_equals, 9) == 0) {
-        int numreplacements = Replace(clname, result_equals, "", DOH_REPLACE_ID_BEGIN);
-        if (numreplacements == 1) {
-          numreplacements = Replace(clname, ";\n", "", DOH_REPLACE_ID_END);
-          if (numreplacements == 1) {
-            if (Strchr(clname, ';') == 0) {
-              lname = clname;
-              actioncode = 0;
-              optimal_substitution = 1;
-            }
-          }
-        }
-      }
-      if (!optimal_substitution) {
+      if (Strncmp(actioncode, result_equals, Len(result_equals)) == 0 &&
+	  Strchr(actioncode, ';') == Char(actioncode) + Len(actioncode) - 2 &&
+	  Char(actioncode)[Len(actioncode) - 1] == '\n') {
+	clname = NewStringWithSize(Char(actioncode) + Len(result_equals),
+				   Len(actioncode) - Len(result_equals) - 2);
+	lname = clname;
+	actioncode = 0;
+	optimal_substitution = 1;
+      } else {
 	Swig_warning(WARN_TYPEMAP_OUT_OPTIMAL_IGNORED, Getfile(node), Getline(node), "Method %s usage of the optimal attribute ignored\n", Swig_name_decl(node));
-	Swig_warning(WARN_TYPEMAP_OUT_OPTIMAL_IGNORED, Getfile(s), Getline(s), "in the out typemap as the following cannot be used to generate optimal code: %s\n", clname);
+	Swig_warning(WARN_TYPEMAP_OUT_OPTIMAL_IGNORED, Getfile(s), Getline(s), "in the out typemap as the following cannot be used to generate optimal code: %s\n", actioncode);
 	delete_optimal_attribute = 1;
       }
     } else {
@@ -1463,6 +1510,7 @@ static String *Swig_typemap_lookup_impl(const_String_or_char_ptr tmap_method, No
 
   /* Attach kwargs - ie the typemap attributes */
   kw = Getattr(tm, "kwargs");
+  typemap_merge_fragment_kwargs(kw);
   while (kw) {
     String *value = Copy(Getattr(kw, "value"));
     String *kwtype = Getattr(kw, "type");
@@ -1577,6 +1625,7 @@ String *Swig_typemap_lookup(const_String_or_char_ptr tmap_method, Node *node, co
 static void typemap_attach_kwargs(Hash *tm, const_String_or_char_ptr tmap_method, Parm *firstp, int nmatch) {
   String *temp = NewStringEmpty();
   Parm *kw = Getattr(tm, "kwargs");
+  typemap_merge_fragment_kwargs(kw);
   while (kw) {
     String *value = Copy(Getattr(kw, "value"));
     String *type = Getattr(kw, "type");

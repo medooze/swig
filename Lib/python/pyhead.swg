@@ -13,7 +13,6 @@
 #define PyString_Size(str) PyBytes_Size(str)	
 #define PyString_InternFromString(key) PyUnicode_InternFromString(key)
 #define Py_TPFLAGS_HAVE_CLASS Py_TPFLAGS_BASETYPE
-#define PyString_AS_STRING(x) PyUnicode_AS_STRING(x)
 #define _PyLong_FromSsize_t(x) PyLong_FromSsize_t(x)
 
 #endif
@@ -81,7 +80,12 @@ SWIG_Python_str_FromChar(const char *c)
 
 /* SWIGPY_USE_CAPSULE is no longer used within SWIG itself, but some user interface files check for it. */
 # define SWIGPY_USE_CAPSULE
-# define SWIGPY_CAPSULE_NAME ("swig_runtime_data" SWIG_RUNTIME_VERSION ".type_pointer_capsule" SWIG_TYPE_TABLE_NAME)
+#ifdef SWIGPYTHON_BUILTIN
+# define SWIGPY_CAPSULE_ATTR_NAME "type_pointer_capsule_builtin" SWIG_TYPE_TABLE_NAME
+#else
+# define SWIGPY_CAPSULE_ATTR_NAME "type_pointer_capsule" SWIG_TYPE_TABLE_NAME
+#endif
+# define SWIGPY_CAPSULE_NAME ("swig_runtime_data" SWIG_RUNTIME_VERSION "." SWIGPY_CAPSULE_ATTR_NAME)
 
 #if PY_VERSION_HEX < 0x03020000
 #define PyDescr_TYPE(x) (((PyDescrObject *)(x))->d_type)
