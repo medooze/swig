@@ -43,6 +43,8 @@ SWIGRUNTIME octave_value SWIG_ErrorType(int code) {
     return "SWIG_SystemError";
   case SWIG_AttributeError:
     return "SWIG_AttributeError";
+  case SWIG_NullReferenceError:
+    return "SWIG_NullReferenceError";
   }
   return "SWIG unknown error";
 }
@@ -218,7 +220,7 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
   //
   // These should really be decoupled, with the class support added to Octave
   // and the shadow class given by an m-file script. That would dramatically 
-  // reduce the runtime complexity, and be more in line w/ other modules.
+  // reduce the runtime complexity, and be more in line with other modules.
 
   class octave_swig_type:public octave_base_value {
     struct cpp_ptr {
@@ -232,7 +234,7 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
 
     const swig_type_info *construct_type;	// type of special type object
     std::vector < type_ptr_pair > types;	// our c++ base classes
-    int own;			// whether we call c++ destructors when we die
+    int thisown; // whether we call c++ destructors when we die
 
     typedef std::pair < const swig_octave_member *, octave_value > member_value_pair;
     typedef std::map < std::string, member_value_pair > member_map;
@@ -402,7 +404,11 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
     }
 
     static octave_value make_value_hack(const octave_base_value &x) {
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+      ((octave_swig_type &) x).m_count++;
+#else
       ((octave_swig_type &) x).count++;
+#endif
       return octave_value((octave_base_value *) &x);
     }
 
@@ -412,7 +418,7 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
 
     octave_swig_type(void *_ptr = 0, const swig_type_info *_type = 0, int _own = 0,
 		     bool _always_static = false)
-      :	module(0), construct_type(_ptr ? 0 : _type), own(_own), 
+      :	module(0), construct_type(_ptr ? 0 : _type), thisown(_own), 
       always_static(_always_static) {
       if (_type || _ptr)
 	types.push_back(std::make_pair(_type, _ptr));
@@ -426,8 +432,12 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
     }
 
     ~octave_swig_type() {
-      if (own) {
+      if (thisown) {
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+	++m_count;
+#else
 	++count;
+#endif
 	for (unsigned int j = 0; j < types.size(); ++j) {
 	  if (!types[j].first || !types[j].first->clientdata)
 	    continue;
@@ -515,16 +525,28 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
     }
 
     octave_value as_value() {
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+      ++m_count;
+#else
       ++count;
+#endif
       return Swig::swig_value_ref(this);
     }
 
     void incref() {
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+      ++m_count;
+#else
       ++count;
+#endif
     }
 
     void decref() {
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+      if (!--m_count)
+#else
       if (!--count)
+#endif
 	delete this;
     }
 
@@ -559,7 +581,7 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
     }
 
     void merge(octave_swig_type &rhs) {
-      rhs.own = 0;
+      rhs.thisown = 0;
       for (unsigned int j = 0; j < rhs.types.size(); ++j) {
 	assert(!rhs.types[j].second.destroyed);
 #ifdef SWIG_DIRECTORS
@@ -582,35 +604,56 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
     swig_member_const_iterator swig_members_begin() { return members.begin(); }
     swig_member_const_iterator swig_members_end() { return members.end(); }
 
-    int cast(void **vptr, swig_type_info *type, int *_own, int flags) {
+    int cast(void **vptr, swig_type_info *type, int *own, int flags) {
       int res = SWIG_ERROR;
-      if (_own)
-	*_own = own;
-      if (flags &SWIG_POINTER_DISOWN)
-	own = 0;
+      int clear_pointer = 0;
+
+      if (own)
+	*own = 0;
+      if (((flags & SWIG_POINTER_RELEASE) == SWIG_POINTER_RELEASE) && !thisown) {
+	return SWIG_ERROR_RELEASE_NOT_OWNED;
+      } else {
+	if (own)
+	  *own = *own | thisown;
+	if (flags & SWIG_POINTER_DISOWN) {
+	  thisown = 0;
+	}
+	if (flags & SWIG_POINTER_CLEAR) {
+	  clear_pointer = 1;
+	}
+      }
+
       if (!type && types.size()) {
-	if(vptr)
+	if (vptr) {
           *vptr = types[0].second.ptr;
+	  if (clear_pointer)
+	    types[0].second.ptr = 0;
+        }
         return SWIG_OK;
       }
       for (unsigned int j = 0; j < types.size(); ++j)
 	if (type == types[j].first) {
-	  if(vptr)
+	  if (vptr) {
             *vptr = types[j].second.ptr;
+	    if (clear_pointer)
+	      types[j].second.ptr = 0;
+	  }
           return SWIG_OK;
         }
       for (unsigned int j = 0; j < types.size(); ++j) {
 	swig_cast_info *tc = SWIG_TypeCheck(types[j].first->name, type);
 	if (!tc)
 	  continue;
-        if(vptr) {
+	if (vptr) {
 	  int newmemory = 0;
 	  *vptr = SWIG_TypeCast(tc, types[j].second.ptr, &newmemory);
-	    if (newmemory == SWIG_CAST_NEW_MEMORY) {
-              assert(_own); /* badly formed typemap which will lead to a memory leak - it must set and use own to delete *ptr */
-              if (_own)
-                *_own = *_own | SWIG_CAST_NEW_MEMORY;
-            }
+	  if (newmemory == SWIG_CAST_NEW_MEMORY) {
+	    assert(own); /* badly formed typemap which will lead to a memory leak - it must set and use own to delete *ptr */
+	    if (own)
+	      *own = *own | SWIG_CAST_NEW_MEMORY;
+	  }
+	  if (clear_pointer)
+	    types[j].second.ptr = 0;
         }
         res = SWIG_OK;
         break;
@@ -619,7 +662,7 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
     }
 
     bool is_owned() const {
-      return own;
+      return thisown;
     }
 
 #ifdef SWIG_DIRECTORS
@@ -1102,8 +1145,13 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
       :ptr(_ptr)
       {
         // Ensure type_id() is set correctly
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+        if (s_t_id == -1) {
+          s_t_id = octave_swig_ref::static_type_id();
+#else
         if (t_id == -1) {
           t_id = octave_swig_ref::static_type_id();
+#endif
         }
       }
 
@@ -1233,8 +1281,12 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
 #endif
       { return ptr->print(os, pr_as_read_syntax); }
 
-#if SWIG_OCTAVE_PREREQ(4,4,0)
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+      static void set_type_id(int type_id) { s_t_id=type_id; }
+#else
+# if SWIG_OCTAVE_PREREQ(4,4,0)
       static void set_type_id(int type_id) { t_id=type_id; }
+# endif
 #endif
 
     virtual type_conv_info numeric_conversion_function(void) const {
@@ -1267,8 +1319,13 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
       :	type(_type), buf((const char*)_buf, (const char*)_buf + _buf_len)
       {
         // Ensure type_id() is set correctly
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+        if (s_t_id == -1) {
+          s_t_id = octave_swig_packed::static_type_id();
+#else
         if (t_id == -1) {
           t_id = octave_swig_packed::static_type_id();
+#endif
         }
       }
 
@@ -1348,8 +1405,12 @@ SWIGRUNTIME void swig_acquire_ownership_obj(void *vptr, int own);
 # endif
 #endif
 
-#if SWIG_OCTAVE_PREREQ(4,4,0)
+#if SWIG_OCTAVE_PREREQ(9,0,0)
+    static void set_type_id(int type_id) { s_t_id=type_id; }
+#else
+# if SWIG_OCTAVE_PREREQ(4,4,0)
     static void set_type_id(int type_id) { t_id=type_id; }
+# endif
 #endif
 
   private:
@@ -1526,12 +1587,15 @@ octave_value_typeinfo::register_binary_op(octave_value::op_##name,tid1,tid2,swig
 SWIGRUNTIME octave_value SWIG_Octave_NewPointerObj(void *ptr, swig_type_info *type, int flags) {
   int own = (flags &SWIG_POINTER_OWN) ? SWIG_POINTER_OWN : 0;
 
+  if (ptr) {
 #ifdef SWIG_DIRECTORS
-  Swig::Director *d = Swig::get_rtdir(ptr);
-  if (d && Swig::swig_director_get_self(d))
-    return Swig::swig_director_get_self(d)->as_value();
+    Swig::Director *d = Swig::get_rtdir(ptr);
+    if (d && Swig::swig_director_get_self(d))
+      return Swig::swig_director_get_self(d)->as_value();
 #endif
-  return Swig::swig_value_ref(new octave_swig_type(ptr, type, own));
+    return Swig::swig_value_ref(new octave_swig_type(ptr, type, own));
+  }
+  return octave_value(Matrix()); // null matrix
 }
 
 SWIGRUNTIME int SWIG_Octave_ConvertPtrAndOwn(octave_value ov, void **ptr, swig_type_info *type, int flags, int *own) {
@@ -1606,8 +1670,12 @@ SWIGRUNTIME void SWIG_Octave_LinkGlobalValue(std::string name) {
   octave::interpreter *interp = octave::interpreter::the_interpreter ();
   interp->assign(name, interp->global_varval(name));
   octave::tree_evaluator& tree_eval = interp->get_evaluator();
+#if SWIG_OCTAVE_PREREQ(8,0,0)
+  std::shared_ptr<octave::stack_frame> stackFrame = tree_eval.get_current_stack_frame();
+#else
   octave::call_stack& callStack = tree_eval.get_call_stack();
-  std::shared_ptr<octave::stack_frame> stackFrame = callStack.get_current_stack_frame();
+  std::shared_ptr<octave::stack_frame> stackFrame = tree_eval.get_current_stack_frame();
+#endif
   octave::symbol_record sym=symscope.lookup_symbol(name);
   stackFrame->mark_global(sym);
 #else

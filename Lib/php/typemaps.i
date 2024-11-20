@@ -31,13 +31,13 @@
   temp = (Z_TYPE($input) == IS_TRUE);
   $1 = &temp;
 %}
-%typemap(argout) TYPE *INPUT, TYPE &INPUT "";
-%typemap(in,numinputs=0) TYPE *OUTPUT(TYPE temp), TYPE &OUTPUT(TYPE temp) "$1 = &temp;";
-%typemap(argout,fragment="t_output_helper") TYPE *OUTPUT, TYPE &OUTPUT
+%typemap(argout) TYPE *INPUT, TYPE &INPUT ""
+%typemap(in,numinputs=0) TYPE *OUTPUT(TYPE temp), TYPE &OUTPUT(TYPE temp) "$1 = &temp;"
+%typemap(argout) TYPE *OUTPUT, TYPE &OUTPUT
 {
   zval o;
   ZVAL_BOOL(&o, temp$argnum);
-  t_output_helper($result, &o);
+  SWIG_AppendOutput($result, &o);
 }
 %typemap(in, phptype="float") TYPE *REFERENCE (TYPE lvalue), TYPE &REFERENCE (TYPE lvalue)
 %{
@@ -57,13 +57,13 @@
   temp = (TYPE) zval_get_double(&$input);
   $1 = &temp;
 %}
-%typemap(argout) TYPE *INPUT, TYPE &INPUT "";
-%typemap(in,numinputs=0) TYPE *OUTPUT(TYPE temp), TYPE &OUTPUT(TYPE temp) "$1 = &temp;";
-%typemap(argout,fragment="t_output_helper") TYPE *OUTPUT, TYPE &OUTPUT
+%typemap(argout) TYPE *INPUT, TYPE &INPUT ""
+%typemap(in,numinputs=0) TYPE *OUTPUT(TYPE temp), TYPE &OUTPUT(TYPE temp) "$1 = &temp;"
+%typemap(argout) TYPE *OUTPUT, TYPE &OUTPUT
 {
   zval o;
   ZVAL_DOUBLE(&o, temp$argnum);
-  t_output_helper($result, &o);
+  SWIG_AppendOutput($result, &o);
 }
 %typemap(in, phptype="float") TYPE *REFERENCE (TYPE dvalue), TYPE &REFERENCE (TYPE dvalue)
 %{
@@ -82,13 +82,13 @@
   temp = (TYPE) zval_get_long(&$input);
   $1 = &temp;
 %}
-%typemap(argout) TYPE *INPUT, TYPE &INPUT "";
-%typemap(in,numinputs=0) TYPE *OUTPUT(TYPE temp), TYPE &OUTPUT(TYPE temp) "$1 = &temp;";
-%typemap(argout,fragment="t_output_helper") TYPE *OUTPUT, TYPE &OUTPUT
+%typemap(argout) TYPE *INPUT, TYPE &INPUT ""
+%typemap(in,numinputs=0) TYPE *OUTPUT(TYPE temp), TYPE &OUTPUT(TYPE temp) "$1 = &temp;"
+%typemap(argout) TYPE *OUTPUT, TYPE &OUTPUT
 {
   zval o;
   ZVAL_LONG(&o, temp$argnum);
-  t_output_helper($result, &o);
+  SWIG_AppendOutput($result, &o);
 }
 %typemap(in, phptype="int") TYPE *REFERENCE (TYPE lvalue), TYPE &REFERENCE (TYPE lvalue)
 %{
@@ -116,17 +116,15 @@ INT_TYPEMAP(unsigned char);
 INT_TYPEMAP(signed char);
 
 INT_TYPEMAP(long long);
-%typemap(argout,fragment="t_output_helper") long long *OUTPUT
+%typemap(argout) long long *OUTPUT
 {
   zval o;
   if ((long long)LONG_MIN <= temp$argnum && temp$argnum <= (long long)LONG_MAX) {
     ZVAL_LONG(&o, (long)temp$argnum);
   } else {
-    char temp[256];
-    sprintf(temp, "%lld", (long long)temp$argnum);
-    ZVAL_STRING(&o, temp);
+    ZVAL_NEW_STR(&o, zend_strpprintf(0, "%lld", (long long)temp$argnum));
   }
-  t_output_helper($result, &o);
+  SWIG_AppendOutput($result, &o);
 }
 %typemap(in, phptype="int|string") TYPE *REFERENCE (long long lvalue)
 %{
@@ -138,9 +136,7 @@ INT_TYPEMAP(long long);
   if ((long long)LONG_MIN <= lvalue$argnum && lvalue$argnum <= (long long)LONG_MAX) {
     ZVAL_LONG(&$arg, (long)temp$argnum);
   } else {
-    char temp[256];
-    sprintf(temp, "%lld", (long long)lvalue$argnum);
-    ZVAL_STRING(&$arg, temp);
+    ZVAL_NEW_STR(&$arg, zend_strpprintf(0, "%lld", (long long)lvalue$argnum));
   }
 %}
 %typemap(argout) long long &OUTPUT
@@ -148,24 +144,20 @@ INT_TYPEMAP(long long);
   if ((long long)LONG_MIN <= *arg$argnum && *arg$argnum <= (long long)LONG_MAX) {
     ZVAL_LONG($result, (long)(*arg$argnum));
   } else {
-    char temp[256];
-    sprintf(temp, "%lld", (long long)(*arg$argnum));
-    ZVAL_STRING($result, temp);
+    ZVAL_NEW_STR($result, zend_strpprintf(0, "%lld", (long long)(*arg$argnum)));
   }
 %}
 
 INT_TYPEMAP(unsigned long long);
-%typemap(argout,fragment="t_output_helper") unsigned long long *OUTPUT
+%typemap(argout) unsigned long long *OUTPUT
 {
   zval o;
   if (temp$argnum <= (unsigned long long)LONG_MAX) {
     ZVAL_LONG(&o, temp$argnum);
   } else {
-    char temp[256];
-    sprintf(temp, "%llu", (unsigned long long)temp$argnum);
-    ZVAL_STRING(&o, temp);
+    ZVAL_NEW_STR(&o, zend_strpprintf(0, "%llu", (unsigned long long)temp$argnum));
   }
-  t_output_helper($result, &o);
+  SWIG_AppendOutput($result, &o);
 }
 %typemap(in, phptype="int|string") TYPE *REFERENCE (unsigned long long lvalue)
 %{
@@ -177,9 +169,7 @@ INT_TYPEMAP(unsigned long long);
   if (lvalue$argnum <= (unsigned long long)LONG_MAX) {
     ZVAL_LONG($arg, (long)(lvalue$argnum));
   } else {
-    char temp[256];
-    sprintf(temp, "%llu", (unsigned long long)lvalue$argnum);
-    ZVAL_STRING((*$arg), temp);
+    ZVAL_NEW_STR((*$arg), zend_strpprintf(0, "%llu", (unsigned long long)lvalue$argnum));
   }
 %}
 %typemap(argout) unsigned long long &OUTPUT
@@ -187,9 +177,7 @@ INT_TYPEMAP(unsigned long long);
   if (*arg$argnum <= (unsigned long long)LONG_MAX) {
     ZVAL_LONG($result, (long)(*arg$argnum));
   } else {
-    char temp[256];
-    sprintf(temp, "%llu", (unsigned long long)(*arg$argnum));
-    ZVAL_STRING($result, temp);
+    ZVAL_NEW_STR($result, zend_strpprintf(0, "%llu", (unsigned long long)(*arg$argnum)));
   }
 %}
 
@@ -261,11 +249,11 @@ INT_TYPEMAP(unsigned long long);
 %}
 %typemap(in,numinputs=0) char OUTPUT[ANY] ( char temp[$1_dim0] )
   "$1 = temp;";
-%typemap(argout,fragment="t_output_helper") char OUTPUT[ANY]
+%typemap(argout) char OUTPUT[ANY]
 {
   zval o;
   ZVAL_STRINGL(&o, temp$argnum, $1_dim0);
-  t_output_helper($result, &o);
+  SWIG_AppendOutput($result, &o);
 }
 
 %typemap(in,numinputs=0,phptype="?SWIGTYPE") void **OUTPUT (int force),

@@ -4,6 +4,9 @@
 
 %warnfilter(SWIGWARN_RUBY_WRONG_NAME) global_cint;       /* Ruby, wrong constant name */
 
+%feature("php:allowdynamicproperties", 1) Foo; /* Allow PHP-specific custom property testing in _runme.php */
+%feature("php:allowdynamicproperties", 0) Bar; /* and that this doesn't allow custom properties. */
+
 %module cpp_basic
 
 %newobject Bar::testFoo;
@@ -29,7 +32,9 @@ class Foo {
       return -a*num;
     }
     
+#ifndef SWIGC
     int (Foo::*func_ptr)(int);
+#endif // SWIGC
 
     const char* __str__() const { return "Foo"; }
 };
@@ -77,10 +82,9 @@ class Bar {
     Foo *testFoo(int a, Foo *f) {
       return new Foo(2 * a + (f ? f->num : 0) + fval.num);
     }
-/* Const member data and references mean this class can't be assigned.
+/* Const member data and references mean this class can't be assigned. */
 private:
     Bar& operator=(const Bar&);
-*/
 };
 
 // This class is valid C++ but cannot be assigned to because it has const member data.
@@ -98,6 +102,7 @@ Foo Bar::global_fval = Foo(3);
 %}
 
 /* member function tests */
+#ifndef SWIGC
 %inline %{
 int (Foo::*get_func1_ptr())(int) {
   return &Foo::func1;
@@ -112,6 +117,7 @@ int test_func_ptr(Foo *f, int a) {
 }
 
 %}
+#endif // SWIGC
 
 
 #ifdef __cplusplus

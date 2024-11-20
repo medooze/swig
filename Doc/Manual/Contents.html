@@ -50,6 +50,7 @@
 <ul>
 <li><a href="Introduction.html#Introduction_supported_status">Supported status</a>
 <li><a href="Introduction.html#Introduction_experimental_status">Experimental status</a>
+<li><a href="Introduction.html#Introduction_deprecated_status">Deprecated status</a>
 </ul>
 <li><a href="Introduction.html#Introduction_nn4">A SWIG example</a>
 <ul>
@@ -83,18 +84,15 @@
 <ul>
 <li><a href="Windows.html#Windows_csharp">C#</a>
 <li><a href="Windows.html#Windows_java">Java</a>
-<li><a href="Windows.html#Windows_perl">Perl</a>
 <li><a href="Windows.html#Windows_python">Python</a>
 <li><a href="Windows.html#Windows_tcl">TCL</a>
-<li><a href="Windows.html#Windows_r">R</a>
-<li><a href="Windows.html#Windows_ruby">Ruby</a>
 </ul>
 <li><a href="Windows.html#Windows_other_compilers">Instructions for using the Examples with other compilers</a>
 </ul>
 <li><a href="Windows.html#Windows_swig_exe">Building swig.exe on Windows</a>
 <ul>
 <li><a href="Windows.html#Windows_cmake">Building swig.exe using CMake</a>
-<li><a href="Windows.html#Windows_msys2">Building swig.exe using MSYS2</a>
+<li><a href="Windows.html#Windows_msys2">Building swig.exe using MSYS2 and MinGW-w64</a>
 <li><a href="Windows.html#Windows_mingw_msys">Building swig.exe using MinGW and MSYS</a>
 <li><a href="Windows.html#Windows_cygwin">Building swig.exe using Cygwin</a>
 <ul>
@@ -102,6 +100,10 @@
 </ul>
 </ul>
 <li><a href="Windows.html#Windows_interface_file">Microsoft extensions and other Windows quirks</a>
+<ul>
+<li><a href="Windows.html#Windows_msvc_cpp_standards">Visual C++ standards compliance</a>
+<li><a href="Windows.html#Windows_calling_conventions">Calling conventions</a>
+</ul>
 </ul>
 </div>
 <!-- INDEX -->
@@ -138,16 +140,17 @@
 <li><a href="SWIG.html#SWIG_nn2">Running SWIG</a>
 <ul>
 <li><a href="SWIG.html#SWIG_nn3">Input format</a>
-<li><a href="SWIG.html#SWIG_output">SWIG Output</a>
+<li><a href="SWIG.html#SWIG_output">SWIG output</a>
 <li><a href="SWIG.html#SWIG_nn5">Comments</a>
 <li><a href="SWIG.html#SWIG_nn6">C Preprocessor</a>
-<li><a href="SWIG.html#SWIG_nn7">SWIG Directives</a>
-<li><a href="SWIG.html#SWIG_nn8">Parser Limitations</a>
+<li><a href="SWIG.html#SWIG_nn7">SWIG directives</a>
+<li><a href="SWIG.html#SWIG_nn8">Parser limitations</a>
+<li><a href="SWIG.html#SWIG_parse_tree">Parse tree</a>
 </ul>
-<li><a href="SWIG.html#SWIG_nn9">Wrapping Simple C Declarations</a>
+<li><a href="SWIG.html#SWIG_nn9">Wrapping simple C declarations</a>
 <ul>
-<li><a href="SWIG.html#SWIG_nn10">Basic Type Handling</a>
-<li><a href="SWIG.html#SWIG_nn11">Global Variables</a>
+<li><a href="SWIG.html#SWIG_nn10">Basic type handling</a>
+<li><a href="SWIG.html#SWIG_nn11">Global variables</a>
 <li><a href="SWIG.html#SWIG_nn12">Constants</a>
 <li><a href="SWIG.html#SWIG_nn13">A brief word about const</a>
 <li><a href="SWIG.html#SWIG_nn14">A cautionary tale of char *</a>
@@ -237,6 +240,12 @@
 <li><a href="SWIGPlus.html#SWIGPlus_nn15">Protection</a>
 <li><a href="SWIGPlus.html#SWIGPlus_nn16">Enums and constants</a>
 <li><a href="SWIGPlus.html#SWIGPlus_nn17">Friends</a>
+<ul>
+<li><a href="SWIGPlus.html#SWIGPlus_friend_classes">Friend classes</a>
+<li><a href="SWIGPlus.html#SWIGPlus_friend_function_definitions">Friend function definitions</a>
+<li><a href="SWIGPlus.html#SWIGPlus_friend_function_declarations">Friend function declarations</a>
+<li><a href="SWIGPlus.html#SWIGPlus_friends_unqualified">Unqualified friend functions</a>
+</ul>
 <li><a href="SWIGPlus.html#SWIGPlus_nn18">References and pointers</a>
 <li><a href="SWIGPlus.html#SWIGPlus_nn19">Pass and return by value</a>
 <li><a href="SWIGPlus.html#SWIGPlus_nn20">Inheritance</a>
@@ -260,6 +269,7 @@
 <li><a href="SWIGPlus.html#SWIGPlus_template_functions">Function templates</a>
 <li><a href="SWIGPlus.html#SWIGPlus_template_classes">Default template arguments</a>
 <li><a href="SWIGPlus.html#SWIGPlus_template_class_inheritance">Template base classes</a>
+<li><a href="SWIGPlus.html#SWIGPlus_template_empty">Empty template instantiation</a>
 <li><a href="SWIGPlus.html#SWIGPlus_template_specialization">Template specialization</a>
 <li><a href="SWIGPlus.html#SWIGPlus_template_member">Member templates</a>
 <li><a href="SWIGPlus.html#SWIGPlus_template_scoping">Scoping and templates</a>
@@ -268,6 +278,11 @@
 <li><a href="SWIGPlus.html#SWIGPlus_namespaces">Namespaces</a>
 <ul>
 <li><a href="SWIGPlus.html#SWIGPlus_nspace">The nspace feature for namespaces</a>
+<ul>
+<li><a href="SWIGPlus.html#SWIGPlus_nspace_feature_flag">%nspace for mirroring namespace hierarchies</a>
+<li><a href="SWIGPlus.html#SWIGPlus_nspacemove">%nspacemove for modifying namespace hierarchies</a>
+<li><a href="SWIGPlus.html#SWIGPlus_nspace_more">More about the nspace feature</a>
+</ul>
 </ul>
 <li><a href="SWIGPlus.html#SWIGPlus_renaming_templated_types_namespaces">Renaming templated types in namespaces</a>
 <li><a href="SWIGPlus.html#SWIGPlus_exception_specifications">Exception specifications</a>
@@ -297,6 +312,11 @@
 <li><a href="CPlusPlus11.html#CPlusPlus11_core_language_changes">Core language changes</a>
 <ul>
 <li><a href="CPlusPlus11.html#CPlusPlus11_rvalue_reference_and_move_semantics">Rvalue reference and move semantics</a>
+<ul>
+<li><a href="CPlusPlus11.html#CPlusPlus11_rvalue_reference_inputs">Rvalue reference inputs</a>
+<li><a href="CPlusPlus11.html#CPlusPlus11_rvalue_reference_outputs">Rvalue reference outputs</a>
+<li><a href="CPlusPlus11.html#CPlusPlus11_move_only">Movable and move-only types by value</a>
+</ul>
 <li><a href="CPlusPlus11.html#CPlusPlus11_generalized_constant_expressions">Generalized constant expressions</a>
 <li><a href="CPlusPlus11.html#CPlusPlus11_extern_template">Extern template</a>
 <li><a href="CPlusPlus11.html#CPlusPlus11_initializer_lists">Initializer lists</a>
@@ -353,6 +373,7 @@
 <li><a href="CPlusPlus14.html#CPlusPlus14_core_language_changes">Core language changes</a>
 <ul>
 <li><a href="CPlusPlus14.html#CPlusPlus14_binary_literals">Binary integer literals</a>
+<li><a href="CPlusPlus14.html#CPlusPlus14_return_type_deduction">Return type deduction</a>
 </ul>
 <li><a href="CPlusPlus14.html#CPlusPlus14_standard_library_changes">Standard library changes</a>
 </ul>
@@ -370,6 +391,7 @@
 <li><a href="CPlusPlus17.html#CPlusPlus17_nested_namespaces">Nested namespace definitions</a>
 <li><a href="CPlusPlus17.html#CPlusPlus17_u8_char_literals">UTF-8 character literals</a>
 <li><a href="CPlusPlus17.html#CPlusPlus17_hexadecimal_floating_literals">Hexadecimal floating literals</a>
+<li><a href="CPlusPlus17.html#CPlusPlus17_fold_expressions">Fold expressions</a>
 </ul>
 <li><a href="CPlusPlus17.html#CPlusPlus17_standard_library_changes">Standard library changes</a>
 </ul>
@@ -383,6 +405,15 @@
 <ul>
 <li><a href="CPlusPlus20.html#CPlusPlus20_introduction">Introduction</a>
 <li><a href="CPlusPlus20.html#CPlusPlus20_core_language_changes">Core language changes</a>
+<ul>
+<li><a href="CPlusPlus20.html#CPlusPlus20_spaceship_operator">Spaceship operator</a>
+<li><a href="CPlusPlus20.html#CPlusPlus20_lambda_templates">Lambda templates</a>
+<li><a href="CPlusPlus20.html#CPlusPlus20_constexpr_destructors">Constexpr destructors</a>
+</ul>
+<li><a href="CPlusPlus20.html#CPlusPlus20_preprocessor_changes">Preprocessor changes</a>
+<ul>
+<li><a href="CPlusPlus20.html#CPlusPlus20_va_opt">__VA_OPT__()</a>
+</ul>
 <li><a href="CPlusPlus20.html#CPlusPlus20_standard_library_changes">Standard library changes</a>
 </ul>
 </div>
@@ -398,7 +429,7 @@
 <li><a href="Preprocessor.html#Preprocessor_condition_compilation">Conditional Compilation</a>
 <li><a href="Preprocessor.html#Preprocessor_nn5">Macro Expansion</a>
 <li><a href="Preprocessor.html#Preprocessor_nn6">SWIG Macros</a>
-<li><a href="Preprocessor.html#Preprocessor_nn7">C99 and GNU Extensions</a>
+<li><a href="Preprocessor.html#Preprocessor_nn7">Variadic Macros</a>
 <li><a href="Preprocessor.html#Preprocessor_delimiters">Preprocessing and delimiters</a>
 <ul>
 <li><a href="Preprocessor.html#Preprocessor_nn8">Preprocessing and %{ ... %} &amp; " ... " delimiters</a>
@@ -407,6 +438,8 @@
 <li><a href="Preprocessor.html#Preprocessor_typemap_delimiters">Preprocessor and Typemaps</a>
 <li><a href="Preprocessor.html#Preprocessor_nn10">Viewing preprocessor output</a>
 <li><a href="Preprocessor.html#Preprocessor_warning_error">The #error and #warning directives</a>
+<li><a href="Preprocessor.html#Preprocessor_trigraphs">Trigraphs</a>
+<li><a href="Preprocessor.html#Preprocessor_digraphs">Digraphs</a>
 </ul>
 </div>
 <!-- INDEX -->
@@ -428,13 +461,18 @@
 <li><a href="Library.html#Library_nn8">C string handling</a>
 <ul>
 <li><a href="Library.html#Library_nn9">Default string handling</a>
-<li><a href="Library.html#Library_nn10">Passing binary data</a>
+<li><a href="Library.html#Library_nn10">Passing a string with length</a>
 <li><a href="Library.html#Library_nn11">Using %newobject to release memory</a>
 <li><a href="Library.html#Library_nn12">cstring.i</a>
+</ul>
+<li><a href="Library.html#Library_c_standard_library">C standard library</a>
+<ul>
+<li><a href="Library.html#Library_complex">Complex floating types</a>
 </ul>
 <li><a href="Library.html#Library_stl_cpp_library">STL/C++ library</a>
 <ul>
 <li><a href="Library.html#Library_std_string">std::string</a>
+<li><a href="Library.html#Library_std_string_view">std::string_view</a>
 <li><a href="Library.html#Library_std_vector">std::vector</a>
 <li><a href="Library.html#Library_stl_exceptions">STL exceptions</a>
 <li><a href="Library.html#Library_std_shared_ptr">shared_ptr smart pointer</a>
@@ -444,6 +482,11 @@
 <li><a href="Library.html#Library_shared_ptr_overloading">shared_ptr and method overloading</a>
 <li><a href="Library.html#Library_shared_ptr_templates">shared_ptr and templates</a>
 <li><a href="Library.html#Library_shared_ptr_directors">shared_ptr and directors</a>
+</ul>
+<li><a href="Library.html#Library_std_unique_ptr">unique_ptr smart pointer</a>
+<ul>
+<li><a href="Library.html#Library_std_unique_ptr_by_value">unique_ptr passed by value</a>
+<li><a href="Library.html#Library_std_unique_ptr_by_ref">unique_ptr passed by reference</a>
 </ul>
 <li><a href="Library.html#Library_std_auto_ptr">auto_ptr smart pointer</a>
 </ul>
@@ -520,10 +563,15 @@
 <li><a href="Typemaps.html#Typemaps_nn22">Scope</a>
 <li><a href="Typemaps.html#Typemaps_nn23">Declaring new local variables</a>
 <li><a href="Typemaps.html#Typemaps_special_variables">Special variables</a>
+<ul>
+<li><a href="Typemaps.html#Typemaps_type_special_variables">Type related special variables</a>
+<li><a href="Typemaps.html#Typemaps_non_type_special_variables">Non-type related special variables</a>
+</ul>
 <li><a href="Typemaps.html#Typemaps_special_variable_macros">Special variable macros</a>
 <ul>
 <li><a href="Typemaps.html#Typemaps_special_macro_descriptor">$descriptor(type)</a>
 <li><a href="Typemaps.html#Typemaps_special_macro_typemap">$typemap(method, typepattern)</a>
+<li><a href="Typemaps.html#Typemaps_special_macro_typemap_attribute">$typemap(method:attribute, typepattern)</a>
 </ul>
 <li><a href="Typemaps.html#Typemaps_special_variable_attributes">Special variables and typemap attributes</a>
 <li><a href="Typemaps.html#Typemaps_special_variables_and_macros">Special variables combined with special variable macros</a>
@@ -569,6 +617,9 @@
 <li><a href="Typemaps.html#Typemaps_typecheck_pointer">SWIG_TYPECHECK_POINTER precedence level and the typecheck typemap</a>
 </ul>
 <li><a href="Typemaps.html#Typemaps_nn48">More about %apply and %clear</a>
+<ul>
+<li><a href="Typemaps.html#Typemaps_apply_typedefs">Typedefs and %apply</a>
+</ul>
 <li><a href="Typemaps.html#Typemaps_nn47">Passing data between typemaps</a>
 <li><a href="Typemaps.html#Typemaps_nn52">C++ "this" pointer</a>
 <li><a href="Typemaps.html#Typemaps_nn51">Where to go for more information?</a>
@@ -654,19 +705,23 @@
 </ul>
 <li><a href="Doxygen.html#Doxygen_additional_options">Additional command line options</a>
 </ul>
-<li><a href="Doxygen.html#Doxygen_to_javadoc">Doxygen to Javadoc</a>
+<li><a href="Doxygen.html#Doxygen_javadoc">Doxygen to Javadoc</a>
 <ul>
-<li><a href="Doxygen.html#Doxygen_basic_example">Basic example</a>
+<li><a href="Doxygen.html#Doxygen_javadoc_basic_example">Basic Javadoc example</a>
 <li><a href="Doxygen.html#Doxygen_javadoc_tags">Javadoc tags</a>
-<li><a href="Doxygen.html#Doxygen_unsupported_tags">Unsupported tags</a>
-<li><a href="Doxygen.html#Doxygen_further_details">Further details</a>
+<li><a href="Doxygen.html#Doxygen_javadoc_unsupported_tags">Unsupported tags for Javadoc</a>
 </ul>
-<li><a href="Doxygen.html#Doxygen_to_pydoc">Doxygen to Pydoc</a>
+<li><a href="Doxygen.html#Doxygen_pydoc">Doxygen to Pydoc</a>
 <ul>
-<li><a href="Doxygen.html#Doxygen_python_basic_example">Basic example</a>
+<li><a href="Doxygen.html#Doxygen_pydoc_basic_example">Basic Pydoc example</a>
 <li><a href="Doxygen.html#Doxygen_pydoc_tags">Pydoc translator</a>
-<li><a href="Doxygen.html#Doxygen_python_unsupported_tags">Unsupported tags</a>
-<li><a href="Doxygen.html#Doxygen_python_further_details">Further details</a>
+<li><a href="Doxygen.html#Doxygen_pydoc_unsupported_tags">Unsupported tags for Pydoc</a>
+</ul>
+<li><a href="Doxygen.html#Doxygen_csharp">Doxygen to XML C# documentation</a>
+<ul>
+<li><a href="Doxygen.html#Doxygen_csharp_basic_example">Basic C# example</a>
+<li><a href="Doxygen.html#Doxygen_csharp_tags">C# tags</a>
+<li><a href="Doxygen.html#Doxygen_csharp_unsupported_tags">Unsupported tags for C#</a>
 </ul>
 <li><a href="Doxygen.html#Doxygen_troubleshooting">Troubleshooting</a>
 <ul>
@@ -783,7 +838,12 @@
 <li><a href="CSharp.html#CSharp_commandline">Additional command line options</a>
 </ul>
 <li><a href="CSharp.html#CSharp_differences_java">Differences to the Java module</a>
+<li><a href="CSharp.html#CSharp_type_mapping">Type mapping</a>
+<ul>
+<li><a href="CSharp.html#CSharp_primitive_types">Primitive types</a>
+<li><a href="CSharp.html#CSharp_other_type_mappings">Other types</a>
 <li><a href="CSharp.html#CSharp_void_pointers">Void pointers</a>
+</ul>
 <li><a href="CSharp.html#CSharp_arrays">C# Arrays</a>
 <ul>
 <li><a href="CSharp.html#CSharp_arrays_swig_library">The SWIG C arrays library</a>
@@ -804,9 +864,14 @@
 <li><a href="CSharp.html#CSharp_director_caveats">Director caveats</a>
 </ul>
 <li><a href="CSharp.html#CSharp_multiple_modules">Multiple modules</a>
+<li><a href="CSharp.html#CSharp_named_arguments">C# named and optional arguments</a>
 <li><a href="CSharp.html#CSharp_typemap_examples">C# Typemap examples</a>
 <ul>
-<li><a href="CSharp.html#CSharp_memory_management_member_variables">Memory management when returning references to member variables</a>
+<li><a href="CSharp.html#CSharp_memory_management_member_variables">Memory management for accessing member variables</a>
+<ul>
+<li><a href="CSharp.html#CSharp_memory_management_member_variables_accessors">Member variables via accessor methods</a>
+<li><a href="CSharp.html#CSharp_memory_management_member_variables_direct">Direct access to member variables</a>
+</ul>
 <li><a href="CSharp.html#CSharp_memory_management_objects">Memory management for objects passed to the C++ layer</a>
 <li><a href="CSharp.html#CSharp_date_marshalling">Date marshalling using the csin typemap and associated attributes</a>
 <li><a href="CSharp.html#CSharp_date_properties">A date example demonstrating marshalling of C# properties</a>
@@ -837,7 +902,11 @@
 <li><a href="D.html#D_code_injection_typemaps">Code injection typemaps</a>
 <li><a href="D.html#D_special_variables">Special variable macros</a>
 </ul>
+<li><a href="D.html#D_other_code_control">Other D code control features</a>
+<ul>
+<li><a href="D.html#D_module">D begin</a>
 <li><a href="D.html#D_features">D and %feature</a>
+</ul>
 <li><a href="D.html#D_pragmas">Pragmas</a>
 <li><a href="D.html#D_exceptions">D Exceptions</a>
 <li><a href="D.html#D_directors">D Directors</a>
@@ -999,6 +1068,10 @@
 <ul>
 <li><a href="Java.html#Java_module_class_pragmas">The Java module class pragmas</a>
 </ul>
+<li><a href="Java.html#Java_constants_interface">The Java constants interface</a>
+<ul>
+<li><a href="Java.html#Java_constants_interface_pragmas">The Java constants interface pragmas</a>
+</ul>
 <li><a href="Java.html#Java_proxy_classes">Java proxy classes</a>
 <ul>
 <li><a href="Java.html#Java_memory_management">Memory management</a>
@@ -1028,8 +1101,9 @@
 <ul>
 <li><a href="Java.html#Java_customizing_director_exceptions">Customizing director exceptions</a>
 </ul>
+<li><a href="Java.html#Java_protected_virtual_methods">Accessing virtual protected methods</a>
+<li><a href="Java.html#Java_allprotected">Accessing non-virtual protected members</a>
 </ul>
-<li><a href="Java.html#Java_allprotected">Accessing protected members</a>
 <li><a href="Java.html#Java_common_customization">Common customization features</a>
 <ul>
 <li><a href="Java.html#Java_helper_functions">C/C++ helper functions</a>
@@ -1037,6 +1111,7 @@
 <li><a href="Java.html#Java_proxycode">Class extension with %proxycode</a>
 <li><a href="Java.html#Java_exception_handling">Exception handling with %exception and %javaexception</a>
 <li><a href="Java.html#Java_method_access">Method access with %javamethodmodifiers</a>
+<li><a href="Java.html#Java_begin">Java begin</a>
 </ul>
 <li><a href="Java.html#Java_tips_techniques">Tips and techniques</a>
 <ul>
@@ -1044,7 +1119,7 @@
 <li><a href="Java.html#Java_simple_pointers">Simple pointers</a>
 <li><a href="Java.html#Java_c_arrays">Wrapping C arrays with Java arrays</a>
 <li><a href="Java.html#Java_unbounded_c_arrays">Unbounded C Arrays</a>
-<li><a href="Java.html#Java_binary_char">Binary data vs Strings</a>
+<li><a href="Java.html#Java_string_length">Passing a string with length</a>
 <li><a href="Java.html#Java_heap_allocations">Overriding new and delete to allocate from Java heap</a>
 </ul>
 <li><a href="Java.html#Java_typemaps">Java typemaps</a>
@@ -1072,7 +1147,11 @@
 <li><a href="Java.html#Java_adding_equals_method">Adding an equals method to the Java classes</a>
 <li><a href="Java.html#Java_void_pointers">Void pointers and a common Java base class</a>
 <li><a href="Java.html#Java_struct_pointer_pointer">Struct pointer to pointer</a>
-<li><a href="Java.html#Java_memory_management_member_variables">Memory management when returning references to member variables</a>
+<li><a href="Java.html#Java_memory_management_member_variables">Memory management for accessing member variables</a>
+<ul>
+<li><a href="Java.html#Java_memory_management_member_variables_accessors">Member variables via accessor methods</a>
+<li><a href="Java.html#Java_memory_management_member_variables_direct">Direct access to member variables</a>
+</ul>
 <li><a href="Java.html#Java_memory_management_objects">Memory management for objects passed to the C++ layer</a>
 <li><a href="Java.html#Java_date_marshalling">Date marshalling using the javain typemap and associated attributes</a>
 </ul>
@@ -1106,6 +1185,7 @@
 <ul>
 <li><a href="Javascript.html#Javascript_node_extensions">Creating node.js Extensions</a>
 <ul>
+<li><a href="Javascript.html#Javascript_using_yeoman">Using <code>yeoman</code> to generate a Node-API skeleton</a>
 <li><a href="Javascript.html#Javascript_troubleshooting">Troubleshooting</a>
 </ul>
 <li><a href="Javascript.html#Javascript_embedded_webkit">Embedded Webkit</a>
@@ -1127,6 +1207,7 @@
 <li><a href="Javascript.html#Javascript_emitter">Emitter</a>
 <li><a href="Javascript.html#Javascript_emitter_states">Emitter states</a>
 <li><a href="Javascript.html#Javascript_jsc_exceptions">Handling Exceptions in JavascriptCore</a>
+<li><a href="Javascript.html#Javascript_napi_exceptions">Handling Exceptions in Node-API</a>
 </ul>
 </ul>
 </div>
@@ -1340,6 +1421,7 @@
 <li><a href="Php.html#Php_nn2_6_3">Static Member Variables</a>
 <li><a href="Php.html#Php_nn2_6_4">Static Member Functions</a>
 <li><a href="Php.html#Php_nn2_6_5">Specifying Implemented Interfaces</a>
+<li><a href="Php.html#Php_nn2_6_6">Dynamic Properties</a>
 </ul>
 <li><a href="Php.html#Php_nn2_7">PHP Pragmas, Startup and Shutdown code</a>
 </ul>
@@ -1415,6 +1497,7 @@
 <li><a href="Python.html#Python_nn36">Exception unrolling</a>
 <li><a href="Python.html#Python_nn37">Overhead and code bloat</a>
 <li><a href="Python.html#Python_nn38">Typemaps</a>
+<li><a href="Python.html#Python_director_thread_safety">Thread safety</a>
 <li><a href="Python.html#Python_nn39">Miscellaneous</a>
 </ul>
 <li><a href="Python.html#Python_nn40">Common customization features</a>
@@ -1427,6 +1510,7 @@
 <ul>
 <li><a href="Python.html#Python_fastproxy">-fastproxy</a>
 </ul>
+<li><a href="Python.html#Python_stable_abi">Stable ABI</a>
 </ul>
 <li><a href="Python.html#Python_nn45">Tips and techniques</a>
 <ul>
@@ -1445,7 +1529,7 @@
 </ul>
 <li><a href="Python.html#Python_nn58">Typemap Examples</a>
 <ul>
-<li><a href="Python.html#Python_nn59">Converting  Python list to a char ** </a>
+<li><a href="Python.html#Python_nn59">Converting a Python list to a char ** </a>
 <li><a href="Python.html#Python_nn60">Expanding a Python object into multiple arguments</a>
 <li><a href="Python.html#Python_nn61">Using typemaps to return arguments</a>
 <li><a href="Python.html#Python_nn62">Mapping Python tuples into small arrays</a>
@@ -1723,6 +1807,7 @@
 <ul>
 <li><a href="Scilab.html#Scilab_generated_scripts_builder_script">Builder script</a>
 <li><a href="Scilab.html#Scilab_generated_scripts_loader_script">Loader script</a>
+<li><a href="Scilab.html#Scilab_generated_scripts_gateway">Gateway XML files</a>
 </ul>
 <li><a href="Scilab.html#Scilab_other_resources">Other resources</a>
 </ul>
@@ -1795,7 +1880,53 @@
 </div>
 <!-- INDEX -->
 
-<h3><a href="Mzscheme.html#Mzscheme">38 SWIG and MzScheme/Racket</a></h3>
+<h3><a href="C.html#C">38 SWIG and C as the target language</a></h3>
+
+<!-- INDEX -->
+<div class="sectiontoc">
+<ul>
+<li><a href="C.html#C_overview">Overview</a>
+<ul>
+<li><a href="C.html#C_shortcomings">Known C++ Shortcomings in Generated C API</a>
+</ul>
+<li><a href="C.html#C_preliminaries">Preliminaries</a>
+<ul>
+<li><a href="C.html#C_running_swig">Running SWIG</a>
+<li><a href="C.html#C_commandline">Command line options</a>
+<li><a href="C.html#C_dynamic">Compiling a dynamic module</a>
+<li><a href="C.html#C_using_module">Using the generated module</a>
+</ul>
+<li><a href="C.html#C_basic_c_wrapping">Basic C wrapping</a>
+<ul>
+<li><a href="C.html#C_functions">Functions</a>
+<li><a href="C.html#C_variables">Variables</a>
+</ul>
+<li><a href="C.html#C_basic_cpp_wrapping">Basic C++ wrapping</a>
+<ul>
+<li><a href="C.html#C_enums">Enums</a>
+<li><a href="C.html#C_classes">Classes</a>
+</ul>
+<li><a href="C.html#C_developer">Backend Developer Documentation</a>
+<li><a href="C.html#C_typemaps">Typemaps</a>
+<ul>
+<li><a href="C.html#C_typemaps_walkthrough">C Typemaps, a Code Generation Walkthrough</a>
+<ul>
+<li><a href="C.html#C_walkthrough_interface">The Interface</a>
+<li><a href="C.html#C_walkthrough_wrapper">The Wrapper</a>
+<li><a href="C.html#C_walkthrough_proxy">The Proxy</a>
+</ul>
+</ul>
+<li><a href="C.html#C_exceptions">Exception handling</a>
+<li><a href="C.html#C_cxx_wrappers">C++ Wrappers</a>
+<ul>
+<li><a href="C.html#C_additional_possibilities">Additional customization possibilities</a>
+<li><a href="C.html#C_exception_handling">Exception handling</a>
+</ul>
+</ul>
+</div>
+<!-- INDEX -->
+
+<h3><a href="Mzscheme.html#Mzscheme">39 SWIG and MzScheme/Racket</a></h3>
 
 <!-- INDEX -->
 <div class="sectiontoc">
@@ -1807,7 +1938,7 @@
 </div>
 <!-- INDEX -->
 
-<h3><a href="Ocaml.html#Ocaml">39 SWIG and OCaml</a></h3>
+<h3><a href="Ocaml.html#Ocaml">40 SWIG and OCaml</a></h3>
 
 <!-- INDEX -->
 <div class="sectiontoc">
@@ -1862,7 +1993,7 @@
 </div>
 <!-- INDEX -->
 
-<h3><a href="Extending.html#Extending">40 Extending SWIG to support new languages</a></h3>
+<h3><a href="Extending.html#Extending">41 Extending SWIG to support new languages</a></h3>
 
 <!-- INDEX -->
 <div class="sectiontoc">
@@ -1925,6 +2056,7 @@
 <ul>
 <li><a href="Extending.html#Extending_supported_status">Supported status</a>
 <li><a href="Extending.html#Extending_experimental_status">Experimental status</a>
+<li><a href="Extending.html#Extending_deprecated_status">Deprecated status</a>
 </ul>
 <li><a href="Extending.html#Extending_prerequisites">Prerequisites for adding a new language module to the SWIG distribution</a>
 </ul>

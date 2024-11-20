@@ -4,7 +4,7 @@
  * terms also apply to certain portions of SWIG. The full details of the SWIG
  * license and copyrights can be found in the LICENSE and COPYRIGHT files
  * included with the SWIG source code as distributed by the SWIG developers
- * and at http://www.swig.org/legal.html.
+ * and at https://www.swig.org/legal.html.
  *
  * memory.c
  *
@@ -48,7 +48,7 @@ static int pools_initialized = 0;
  * CreatePool() - Create a new memory pool 
  * ---------------------------------------------------------------------- */
 
-static void CreatePool() {
+static void CreatePool(void) {
   Pool *p = 0;
   p = (Pool *) DohMalloc(sizeof(Pool));
   p->ptr = (DohBase *) DohCalloc(PoolSize, sizeof(DohBase));
@@ -65,7 +65,7 @@ static void CreatePool() {
  * InitPools() - Initialize the memory allocator
  * ---------------------------------------------------------------------- */
 
-static void InitPools() {
+static void InitPools(void) {
   if (pools_initialized)
     return;
   CreatePool();			/* Create initial pool */
@@ -258,17 +258,9 @@ static void allocation_failed(size_t n, size_t size) {
   /* Report and exit as directly as possible to try to avoid further issues due
    * to lack of memory. */
   if (n == 1) {
-#if defined __STDC_VERSION__ && __STDC_VERSION__-0 >= 19901L
-    fprintf(stderr, "Failed to allocate %zu bytes\n", size);
-#else
-    fprintf(stderr, "Failed to allocate %lu bytes\n", (unsigned long)size);
-#endif
+    fprintf(stderr, "Failed to allocate %llu bytes\n", (unsigned long long)size);
   } else {
-#if defined __STDC_VERSION__ && __STDC_VERSION__-0 >= 19901L
-    fprintf(stderr, "Failed to allocate %zu*%zu bytes\n", n, size);
-#else
-    fprintf(stderr, "Failed to allocate %lu*%lu bytes\n", (unsigned long)n, (unsigned long)size);
-#endif
+    fprintf(stderr, "Failed to allocate %llu*%llu bytes\n", (unsigned long long)n, (unsigned long long)size);
   }
   DohExit(EXIT_FAILURE);
 }

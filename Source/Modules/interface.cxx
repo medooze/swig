@@ -4,7 +4,7 @@
  * terms also apply to certain portions of SWIG. The full details of the SWIG
  * license and copyrights can be found in the LICENSE and COPYRIGHT files
  * included with the SWIG source code as distributed by the SWIG developers
- * and at http://www.swig.org/legal.html.
+ * and at https://www.swig.org/legal.html.
  *
  * interface.cxx
  *
@@ -29,10 +29,9 @@ static bool interface_feature_enabled = false;
 
 static List *collect_interface_methods(Node *n) {
   List *methods = NewList();
-  if (Hash *bases = Getattr(n, "interface:bases")) {
-    List *keys = Keys(bases);
-    for (Iterator base = First(keys); base.item; base = Next(base)) {
-      Node *cls = Getattr(bases, base.item);
+  if (List *bases = Getattr(n, "interface:bases")) {
+    for (Iterator base = First(bases); base.item; base = Next(base)) {
+      Node *cls = base.item;
       if (cls == n)
 	continue;
       for (Node *child = firstChild(cls); child; child = nextSibling(child)) {
@@ -55,7 +54,6 @@ static List *collect_interface_methods(Node *n) {
 	}
       }
     }
-    Delete(keys);
   }
   return methods;
 }
@@ -64,11 +62,10 @@ static List *collect_interface_methods(Node *n) {
  * collect_interface_bases
  * ----------------------------------------------------------------------------- */
 
-static void collect_interface_bases(Hash *bases, Node *n) {
+static void collect_interface_bases(List *bases, Node *n) {
   if (GetFlag(n, "feature:interface")) {
-    String *name = Getattr(n, "interface:name");
-    if (!Getattr(bases, name))
-      Setattr(bases, name, n);
+    if (!Swig_item_in_list(bases, n))
+      Append(bases, n);
   }
 
   if (List *baselist = Getattr(n, "bases")) {
@@ -84,10 +81,11 @@ static void collect_interface_bases(Hash *bases, Node *n) {
 /* -----------------------------------------------------------------------------
  * collect_interface_base_classes()
  *
- * Create a hash containing all the classes up the inheritance hierarchy
+ * Create a list containing all the classes up the inheritance hierarchy
  * marked with feature:interface (including this class n).
  * Stops going up the inheritance chain as soon as a class is found without
  * feature:interface.
+ * Remove duplicate bases (in the event of multiple inheritance).
  * The idea is to find all the base interfaces that a class must implement.
  * ----------------------------------------------------------------------------- */
 
@@ -106,7 +104,7 @@ static void collect_interface_base_classes(Node *n) {
     }
   }
 
-  Hash *interface_bases = NewHash();
+  List *interface_bases = NewList();
   collect_interface_bases(interface_bases, n);
   if (Len(interface_bases) == 0)
     Delete(interface_bases);
@@ -185,6 +183,7 @@ void Swig_interface_propagate_methods(Node *n) {
 	if (Strcmp(symname, "$ignore") != 0) {
 	  Symtab *oldscope = Swig_symbol_setscope(Getattr(n, "symtab"));
 	  Node *on = Swig_symbol_add(symname, cn);
+	  (void)on;
 	  assert(on == cn);
 
 	  // Features from the copied base class method are already present, now add in features specific to the added method in the derived class

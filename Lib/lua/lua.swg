@@ -18,8 +18,9 @@
  *                          constants typemaps
  * ----------------------------------------------------------------------------- */
 // this basically adds to a table of constants
+/* Extra `(`...`)` here are to handle $value being e.g. `SizeOf< int,int >::size`. */
 %typemap(consttab) int, unsigned int, short, unsigned short, long, unsigned long, unsigned char, signed char, bool, enum SWIGTYPE
-       {SWIG_LUA_CONSTTAB_INT("$symname", $value)}
+       {SWIG_LUA_CONSTTAB_INT("$symname", ($value))}
 
 %typemap(consttab) float, double
        {SWIG_LUA_CONSTTAB_FLOAT("$symname", $value)}
@@ -51,6 +52,17 @@
 %typemap(consttab) SWIGTYPE (CLASS::*)
        { SWIG_LUA_CONSTTAB_BINARY("$symname", sizeof($type),&$value, $1_descriptor) }
 
+/* String & length typemap */
+
+%typemap(in,checkfn="lua_isstring") (const char *STRING, size_t LENGTH) {
+  size_t len;
+  $1 = ($1_ltype)lua_tolstring(L, $input, &len);
+  SWIG_contract_assert($1, "non null string");
+  $2 = ($2_ltype)len;
+}
+%apply (const char *STRING, size_t LENGTH) { (char *STRING, size_t LENGTH) }
+%apply (const char *STRING, size_t LENGTH) { (const char *STRING, int LENGTH) }
+%apply (char *STRING, size_t LENGTH) { (char *STRING, int LENGTH) }
 
 /* -----------------------------------------------------------------------------
  *                          Overloaded operator support
@@ -213,7 +225,7 @@ SWIG_fail;%}
 //	%apply SWIGTYPE EXCEPTION_BY_VAL {FooBar};
 //	%apply SWIGTYPE& EXCEPTION_BY_VAL {FooBar&}; // note: need & twice
 %typemap(throws) SWIGTYPE EXCEPTION_BY_VAL
-%{SWIG_NewPointerObj(L,(void *)new $1_ltype(($1_ltype &) $1),$&1_descriptor,1);
+%{SWIG_NewPointerObj(L,(void *)new $1_ltype($1),$&1_descriptor,1);
 SWIG_fail;%}
 
 // similar for object reference

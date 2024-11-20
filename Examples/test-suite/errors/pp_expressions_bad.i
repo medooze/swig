@@ -1,5 +1,5 @@
 %module xxx
-/* Note: needs -Wextra to see these warnings */
+
 
 /* Divide by zero */
 #define ZERO 0
@@ -65,4 +65,21 @@
 #endif
 /* Unary + was a no-op and so this didn't give an error in SWIG < 4.1.0. */
 #if "1" == +"1"
+#endif
+
+/* Spaceship operator doesn't seem to be allowed in preprocessor expressions,
+ * and isn't valid in C at all.
+ */
+#if (4 <=> 2) < 0
+#endif
+
+/* Check handling of use of an undefined function-like macro. */
+#if MY_VERSION_AT_LEAST(1,2,3)
+#warning This should not warn
+#endif
+
+/* Test errors for bad digits in binary and octal constants. */
+#if 0b01210
+#endif
+#if 018118055
 #endif

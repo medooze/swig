@@ -9,20 +9,6 @@
  * User Directives 
  * ----------------------------------------------------------------------------- */
 
-/* Deprecated SWIG-1.1 directives */
-
-#define %disabledoc     %warn "104:%disabledoc is deprecated"
-#define %enabledoc      %warn "105:%enabledoc is deprecated"
-#define %doconly        %warn "106:%doconly is deprecated"
-#define %style          %warn "107:%style is deprecated" /##/
-#define %localstyle     %warn "108:%localstyle is deprecated" /##/
-#define %title          %warn "109:%title is deprecated" /##/
-#define %section        %warn "110:%section is deprecated" /##/
-#define %subsection     %warn "111:%subsection is deprecated" /##/
-#define %subsubsection  %warn "112:%subsubsection is deprecated" /##/
-#define %new            %warn "117:%new is deprecated. Use %newobject"
-#define %text           %insert("null")
-
 /* Code insertion directives such as %wrapper %{ ... %} */
 
 #define %begin       %insert("begin")
@@ -31,19 +17,12 @@
 #define %wrapper     %insert("wrapper")
 #define %init        %insert("init")
 
-/* Class extension */
-
-#define %addmethods  %warn "113:%addmethods is now %extend" %extend
-
 /* %ignore directive */
 
 #define %ignore         %rename($ignore)
 #define %ignorewarn(x)  %rename("$ignore:" x)
 
 /* Access control directives */
-
-#define %readonly    %warn "114:%readonly is deprecated. Use %immutable; " %feature("immutable");
-#define %readwrite   %warn "115:%readwrite is deprecated. Use %mutable; " %feature("immutable","");
 
 #define %immutable       %feature("immutable")
 #define %noimmutable     %feature("immutable","0")
@@ -136,11 +115,6 @@
 #define %nocallback     %feature("callback","0")
 #define %clearcallback  %feature("callback","")
 
-/* the %nestedworkaround directive (deprecated) */
-#define %nestedworkaround       %feature("nestedworkaround")
-#define %nonestedworkaround     %feature("nestedworkaround","0")
-#define %clearnestedworkaround  %feature("nestedworkaround","")
-
 /* the %flatnested directive */
 #define %flatnested       %feature("flatnested")
 #define %noflatnested     %feature("flatnested","0")
@@ -165,6 +139,7 @@
 #define %nspace      %feature("nspace")
 #define %nonspace    %feature("nspace","0")
 #define %clearnspace %feature("nspace","")
+#define %nspacemove(NAMESPACE) %feature("nspace", #NAMESPACE)
 
 /* valuewrapper directives */
 #define %valuewrapper        %feature("valuewrapper")
@@ -361,6 +336,11 @@ static int NAME(TYPE x) {
 %define SWIG_TYPECHECK_STDUNISTRING 115    %enddef
 %define SWIG_TYPECHECK_UNISTRING    120    %enddef
 %define SWIG_TYPECHECK_CHAR         130    %enddef
+/* Give std::string_view a slightly higher precedence because if there are
+ * overloaded forms then it may be more efficient to pass as std::string_view
+ * (e.g. to pass as std::string requires copying the data into a std::string).
+ */
+%define SWIG_TYPECHECK_STRINGVIEW   134    %enddef
 %define SWIG_TYPECHECK_STDSTRING    135    %enddef
 %define SWIG_TYPECHECK_STRING       140    %enddef
 %define SWIG_TYPECHECK_PAIR         150    %enddef
@@ -448,9 +428,9 @@ namespace std {
 /* Set up the typemap for handling new return strings */
 
 #ifdef __cplusplus
-%typemap(newfree) char * "delete [] $1;";
+%typemap(newfree) char * "delete [] $1;"
 #else
-%typemap(newfree) char * "free($1);";
+%typemap(newfree) char * "free($1);"
 #endif
 
 /* Default typemap for handling char * members */
@@ -560,13 +540,13 @@ namespace std {
 
 /* memberin/globalin typemap for arrays. */
 
-%typemap(memberin,fragment="<string.h>") SWIGTYPE [ANY] {
+%typemap(memberin) SWIGTYPE [ANY] {
   size_t ii;
   $1_basetype *b = ($1_basetype *) $1;
   for (ii = 0; ii < (size_t)$1_size; ii++) b[ii] = *(($1_basetype *) $input + ii);
 }
 
-%typemap(globalin,fragment="<string.h>") SWIGTYPE [ANY] {
+%typemap(globalin) SWIGTYPE [ANY] {
   size_t ii;
   $1_basetype *b = ($1_basetype *) $1;
   for (ii = 0; ii < (size_t)$1_size; ii++) b[ii] = *(($1_basetype *) $input + ii);
@@ -574,7 +554,7 @@ namespace std {
 
 /* memberin/globalin typemap for double arrays. */
 
-%typemap(memberin,fragment="<string.h>") SWIGTYPE [ANY][ANY] {
+%typemap(memberin) SWIGTYPE [ANY][ANY] {
   $basetype (*inp)[$1_dim1] = ($basetype (*)[$1_dim1])($input);
   $basetype (*dest)[$1_dim1] = ($basetype (*)[$1_dim1])($1);
   size_t ii = 0;
@@ -586,7 +566,7 @@ namespace std {
   }
 }
 
-%typemap(globalin,fragment="<string.h>") SWIGTYPE [ANY][ANY] {
+%typemap(globalin) SWIGTYPE [ANY][ANY] {
   $basetype (*inp)[$1_dim1] = ($basetype (*)[$1_dim1])($input);
   $basetype (*dest)[$1_dim1] = ($basetype (*)[$1_dim1])($1);
   size_t ii = 0;
@@ -601,6 +581,10 @@ namespace std {
 /* -----------------------------------------------------------------------------
  *  Runtime code
  * ----------------------------------------------------------------------------- */
+
+
+%insert("runtime") "swiglabels.swg"
+
 
 /*  The SwigValueWrapper class  */
 
@@ -652,33 +636,53 @@ namespace std {
  *       arg1 = *inarg1;       // Assignment from a pointer
  *       arg1 = Vector(1,2,3); // Assignment from a value  
  *
+ * SwigValueWrapper is a drop in replacement to modify normal value semantics by
+ * using the heap instead of the stack to copy/move the underlying object it is
+ * managing. Smart pointers also manage an underlying object on the heap, so
+ * SwigValueWrapper has characteristics of a smart pointer. The reset function
+ * is specific smart pointer functionality, but cannot be a non-static member as
+ * when SWIG modifies typemap code it assumes non-static member function calls
+ * are routed to the underlying object, changing for example $1.f() to (&x)->f().
+ * The reset function was added as an optimisation to avoid some copying/moving
+ * and to take ownership of an object already created on the heap.
+ *
  * The class offers a strong guarantee of exception safety.
- * With regards to the implementation, the private SwigMovePointer nested class is 
- * a simple smart pointer with move semantics, much like std::auto_ptr.
+ * With regards to the implementation, the private SwigSmartPointer nested class is
+ * a simple smart pointer providing exception safety, much like std::auto_ptr.
  *
  * This wrapping technique was suggested by William Fulton and is henceforth
  * known as the "Fulton Transform" :-).
  */
 
 #ifdef __cplusplus
-%insert("runtime") %{
+// Placed in the header section to ensure the language specific header files are
+// the first included headers and not <utility>
+%insert("header") %{
 #ifdef __cplusplus
+#include <utility>
 /* SwigValueWrapper is described in swig.swg */
 template<typename T> class SwigValueWrapper {
-  struct SwigMovePointer {
+  struct SwigSmartPointer {
     T *ptr;
-    SwigMovePointer(T *p) : ptr(p) { }
-    ~SwigMovePointer() { delete ptr; }
-    SwigMovePointer& operator=(SwigMovePointer& rhs) { T* oldptr = ptr; ptr = 0; delete oldptr; ptr = rhs.ptr; rhs.ptr = 0; return *this; }
+    SwigSmartPointer(T *p) : ptr(p) { }
+    ~SwigSmartPointer() { delete ptr; }
+    SwigSmartPointer& operator=(SwigSmartPointer& rhs) { T* oldptr = ptr; ptr = 0; delete oldptr; ptr = rhs.ptr; rhs.ptr = 0; return *this; }
+    void reset(T *p) { T* oldptr = ptr; ptr = 0; delete oldptr; ptr = p; }
   } pointer;
   SwigValueWrapper& operator=(const SwigValueWrapper<T>& rhs);
   SwigValueWrapper(const SwigValueWrapper<T>& rhs);
 public:
   SwigValueWrapper() : pointer(0) { }
-  SwigValueWrapper& operator=(const T& t) { SwigMovePointer tmp(new T(t)); pointer = tmp; return *this; }
+  SwigValueWrapper& operator=(const T& t) { SwigSmartPointer tmp(new T(t)); pointer = tmp; return *this; }
+#if __cplusplus >=201103L
+  SwigValueWrapper& operator=(T&& t) { SwigSmartPointer tmp(new T(std::move(t))); pointer = tmp; return *this; }
+  operator T&&() const { return std::move(*pointer.ptr); }
+#else
   operator T&() const { return *pointer.ptr; }
-  T *operator&() { return pointer.ptr; }
-};%}
+#endif
+  T *operator&() const { return pointer.ptr; }
+  static void reset(SwigValueWrapper& t, T *p) { t.pointer.reset(p); }
+};
 
 /*
  * SwigValueInit() is a generic initialisation solution as the following approach:
@@ -689,16 +693,18 @@ public:
  * 
  *       unsigned int c_result = unsigned int();
  */
-%insert("runtime") %{
 template <typename T> T SwigValueInit() {
   return T();
 }
+
+#if __cplusplus >=201103L
+# define SWIG_STD_MOVE(OBJ) std::move(OBJ)
+#else
+# define SWIG_STD_MOVE(OBJ) OBJ
+#endif
+
 #endif
 %}
 #endif
 
-/*  The swiglabels  */
-
-%insert("runtime") "swiglabels.swg"
-
-
+%insert("runtime") "swigcompat.swg"

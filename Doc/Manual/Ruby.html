@@ -152,7 +152,7 @@
 <H2><a name="Ruby_nn2">35.1 Preliminaries</a></H2>
 
 
-<p> SWIG 4.0 is known to work with Ruby versions 1.9 and later.
+<p> SWIG 4.2 is known to work with Ruby versions 2.0 and later.
 Given the choice, you should use the latest stable version of Ruby. You
 should also determine if your system supports shared libraries and
 dynamic loading. SWIG will work with or without dynamic loading, but
@@ -1707,7 +1707,7 @@ For example: </p>
 <div class="code">
 <pre>%rename("is_it_safe?") is_it_safe();
 
-%typemap(out) int is_it_safe "$result = ($1 != 0) ? Qtrue : Qfalse;";
+%typemap(out) int is_it_safe "$result = ($1 != 0) ? Qtrue : Qfalse;"
 
 int is_it_safe();</pre>
 </div>
@@ -2885,9 +2885,9 @@ example:</p>
   $1 = &amp;temp;
 }
 
-%typemap(argout, fragment="output_helper") int *out {
+%typemap(argout) int *out {
   // Append output value $1 to $result (assuming a single integer in this case)
-  $result = output_helper( $result, INT2NUM(*$1) );
+  $result = SWIG_AppendOutput( $result, INT2NUM(*$1) );
 }</pre>
 </div>
 
@@ -3187,9 +3187,8 @@ exception.
 member functions.</p>
 
 <div class="code"><pre>
-%typemap(directorargout,
-fragment="output_helper") int {
-  $result = output_helper( $result, NUM2INT($1) );
+%typemap(directorargout) int {
+  $result = SWIG_AppendOutput( $result, NUM2INT($1) );
 }
 </pre></div>
 
@@ -3411,7 +3410,7 @@ versions do not, but return a status value to indicate success (<tt>SWIG_OK</tt>
     </tr>
     <tr>
       <td>char * StringValuePtr(String)</td>
-      <td>SWIG_AsCharPtrAndSize(VALUE, char*, size_t, int* alloc)</td>
+      <td>SWIG_AsCharPtrAndSize(VALUE, char**, size_t*, int* alloc)</td>
     </tr>
     <tr>
       <td>char * rb_str2cstr(String, int*length)</td>

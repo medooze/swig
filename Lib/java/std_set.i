@@ -96,6 +96,10 @@ class set {
       public boolean hasNext() {
         return curr.isNot(end);
       }
+
+      public void remove() {
+        throw new java.lang.UnsupportedOperationException();
+      }
     }.init();
   }
 
@@ -138,7 +142,7 @@ class set {
   public:
 
     struct iterator {
-      %typemap(javaclassmodifiers) iterator "protected class"
+      %typemap(javaclassmodifiers) iterator "public class"
       %extend {
         void incrementUnchecked() {
           ++(*$self);

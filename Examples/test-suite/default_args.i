@@ -144,7 +144,7 @@
 %rename(renamed2arg) Foo::renameme(int x) const;
 %rename(renamed1arg) Foo::renameme() const;
 
-%typemap(default) double* null_by_default "$1=0;";
+%typemap(default) double* null_by_default "$1=0;"
 
 %inline %{
   typedef void* MyHandle;
@@ -229,7 +229,7 @@ struct Except {
 %}
 
 // Default parameters in static class methods
-#ifdef SWIGPYTHON
+#if defined(SWIGPYTHON) || defined(SWIGJAVASCRIPT)
 %rename(staticMethod) staticmethod;
 #endif
 
@@ -334,3 +334,36 @@ struct CDA {
 };
 %}
 
+// Regression test for https://sourceforge.net/p/swig/bugs/325/
+%include wchar.i
+%inline %{
+int archiving_on( char * archivpath, char * chmodstr = (char *)"ug+rw" ) {
+  return archivpath && chmodstr[0] == 'u';
+}
+
+// Wide character version
+#include <wchar.h>
+int archiving_onw( wchar_t * archivpath, wchar_t * chmodstr = (wchar_t *)L"ug+rw" ) {
+  return archivpath && chmodstr[0] == 'u';
+}
+%}
+
+%{
+struct SomeClass {
+  int d(int x) const { return x; }
+};
+static SomeClass someobject;
+%}
+%inline %{
+// Regression test - SWIG >= 4.3.0 avoids parsing parameter lists of method
+// calls and instead just skips from `(` to the matching closing `)`.  That
+// means SWIG can now handle any expression in a method call parameter list.
+int nasty_default_expression(int x = someobject.d(sizeof - sizeof 1)) { return x; }
+%}
+
+%inline %{
+// Regression test - SWIG >= 4.3.0 avoids parsing subscript expressions and instead
+// just skips from `[` to the matching closing `]`.  That
+// means SWIG can now handle any expression as the subscript.
+int subscripted_default_arg(int x = "abcdefghij"[sizeof - sizeof 1]) { return x; }
+%}

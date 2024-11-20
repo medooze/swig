@@ -161,8 +161,8 @@ void *string_to_uintptr(char *in)
 
 // These typemaps convert between an array of strings in Go and a
 // const char** that is NULL terminated in C++.
-%typemap(gotype) (const char * const *) "[]string";
-%typemap(imtype) (const char * const *) "uintptr";
+%typemap(gotype) (const char * const *) "[]string"
+%typemap(imtype) (const char * const *) "uintptr"
 %typemap(goin) (const char * const *) {
 	if $input == nil || len($input) == 0 {
 		$result = 0
@@ -225,6 +225,7 @@ class MyClass {
   virtual void S2(std::string& s) = 0;
   virtual void S3(std::string* s) = 0;
   virtual void S4(const char * const *strarray);
+  virtual int S5(const std::string* s);
 };
 
 void MyClass::S1(std::string s) {
@@ -237,6 +238,14 @@ void MyClass::S4(const char * const *strarray) {
 
 void MyClass::CallS4(const char * const *strarray) {
     this->S4(strarray);
+}
+
+int MyClass::S5(const std::string* s) {
+    if (s) {
+        return (*s)[0];
+    } else {
+        return 0;
+    }
 }
 
 %}

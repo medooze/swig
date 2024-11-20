@@ -2,6 +2,14 @@
 /* Tests of constant expressions (C version). */
 
 %inline %{
+#if defined __GNUC__ && __GNUC__ >= 5
+// Suppress warnings about constant comparisons.
+# pragma GCC diagnostic ignored "-Wbool-compare"
+#endif
+
+#if defined(_MSC_VER)
+  #pragma warning(disable : 4804) // warning C4804: '<': unsafe use of type 'bool' in operation
+#endif
 
 /* % didn't work in SWIG 1.3.40 and earlier. */
 const int X = 123%7;
@@ -32,6 +40,19 @@ double d_array[12 % 9];
 #define TEST_I 0
 #endif
 
+/* Regression test for bug with losing parentheses around < and > operators,
+ * fixed in 4.2.0.
+ */
+#define XX (2<(2<2))
+#define YY (2>(2>2))
+#ifdef __cplusplus
+bool xx() { return XX; }
+bool yy() { return YY; }
+#else
+int xx() { return XX; }
+int yy() { return YY; }
+#endif
+
 /* sizeof didn't work on an expression before SWIG 4.1.0 except for cases where
  * the expression was in parentheses and looked syntactically like a type (so
  * sizeof(X) worked because X could be a type syntactically).
@@ -52,5 +73,18 @@ const int s7a = sizeof(3.14);
 const int s7b = sizeof 3.14;
 const int s8a = sizeof(2.1e-6);
 const int s8b = sizeof 2.1e-6;
+const int s9a = sizeof(-s8a);
+// const int s9b = sizeof -s8a; /* not currently supported */
 
 %}
+
+/* Regression test for #1917, fixed in 4.3.0. */
+#ifdef SWIGCSHARP
+%csconst(1) float_suffix_test;
+#endif
+#ifdef SWIGJAVA
+%javaconst(1) float_suffix_test;
+#endif
+%constant const float float_suffix_test = 4.0f;
+%constant const float float_suffix_test2 = 4.0f;
+#define float_suffix_test3 4.0f

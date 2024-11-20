@@ -45,14 +45,14 @@
 %typemap(in, canthrow=1) SWIGTYPE ($&1_type argp)
 %{ argp = ($&1_ltype)$input;
    if (!argp) {
-     SWIG_DSetPendingException(SWIG_DIllegalArgumentException, "Attempt to dereference null $1_type");
+     SWIG_DSetPendingException(SWIG_DNullReferenceException, "Attempt to dereference null $1_type");
      return $null;
    }
    $1 = *argp; %}
 
 %typemap(out) SWIGTYPE
 #ifdef __cplusplus
-%{ $result = new $1_ltype((const $1_ltype &)$1); %}
+%{ $result = new $1_ltype($1); %}
 #else
 {
   $&1_ltype $1ptr = ($&1_ltype) malloc(sizeof($1_ltype));
@@ -62,10 +62,10 @@
 #endif
 
 %typemap(directorin) SWIGTYPE
-  "$input = (void *)new $1_ltype((const $1_ltype &)$1);"
+  "$input = (void *)new $1_ltype(SWIG_STD_MOVE($1));"
 %typemap(directorout) SWIGTYPE
 %{ if (!$input) {
-     SWIG_DSetPendingException(SWIG_DIllegalArgumentException, "Unexpected null return for type $1_type");
+     SWIG_DSetPendingException(SWIG_DNullReferenceException, "Unexpected null return for type $1_type");
      return $null;
    }
    $result = *($&1_ltype)$input; %}
@@ -122,7 +122,7 @@
 
 %typemap(in, canthrow=1) SWIGTYPE & %{ $1 = ($1_ltype)$input;
   if (!$1) {
-    SWIG_DSetPendingException(SWIG_DIllegalArgumentException, "$1_type type is null");
+    SWIG_DSetPendingException(SWIG_DNullReferenceException, "$1_type is null");
     return $null;
   } %}
 %typemap(out) SWIGTYPE & "$result = (void *)$1;"
@@ -131,7 +131,7 @@
   "$input = ($1_ltype) &$1;"
 %typemap(directorout, warning=SWIGWARN_TYPEMAP_DIRECTOROUT_PTR_MSG) SWIGTYPE &
 %{ if (!$input) {
-     SWIG_DSetPendingException(SWIG_DIllegalArgumentException, "Unexpected null return for type $1_type");
+     SWIG_DSetPendingException(SWIG_DNullReferenceException, "Unexpected null return for type $1_type");
      return $null;
    }
    $result = ($1_ltype)$input; %}
@@ -157,18 +157,19 @@
  * Rvalue reference conversion typemaps.
  */
 
-%typemap(in, canthrow=1) SWIGTYPE && %{ $1 = ($1_ltype)$input;
+%typemap(in, canthrow=1, fragment="<memory>") SWIGTYPE && (std::unique_ptr<$*1_ltype> rvrdeleter) %{ $1 = ($1_ltype)$input;
   if (!$1) {
-    SWIG_DSetPendingException(SWIG_DIllegalArgumentException, "$1_type type is null");
+    SWIG_DSetPendingException(SWIG_DNullReferenceException, "$1_type is null");
     return $null;
-  } %}
+  }
+  rvrdeleter.reset($1); %}
 %typemap(out) SWIGTYPE && "$result = (void *)$1;"
 
 %typemap(directorin) SWIGTYPE &&
   "$input = ($1_ltype) &$1;"
 %typemap(directorout, warning=SWIGWARN_TYPEMAP_DIRECTOROUT_PTR_MSG) SWIGTYPE &&
 %{ if (!$input) {
-     SWIG_DSetPendingException(SWIG_DIllegalArgumentException, "Unexpected null return for type $1_type");
+     SWIG_DSetPendingException(SWIG_DNullReferenceException, "Unexpected null return for type $1_type");
      return $null;
    }
    $result = ($1_ltype)$input; %}
@@ -182,7 +183,7 @@
 
 %typemap(din,
   nativepointer="cast(void*)$dinput"
-) SWIGTYPE && "$dclassname.swigGetCPtr($dinput)"
+) SWIGTYPE && "$dclassname.swigRelease($dinput)"
 %typemap(dout, excode=SWIGEXCODE,
   nativepointer="{\n  auto ret = cast($dtype)$imcall;$excode\n  return ret;\n}") SWIGTYPE && {
   $dclassname ret = new $dclassname($imcall, $owner);$excode
@@ -238,3 +239,47 @@
   nativepointer="cast(void*)$dcall"
 ) SWIGTYPE *const& "$*dclassname.swigGetCPtr($dcall)"
 
+/*
+ * D String & D array represent in C
+ */
+
+%insert(runtime) %{
+#include <stddef.h>
+typedef struct { size_t len; char *str;} SWIG_c_dstring;
+typedef struct { size_t len; SWIG_c_dstring *array; } SWIG_c_dstring_array;
+typedef struct { size_t len; void *array; } SWIG_c_array;
+%}
+
+/*
+ * String & length
+ */
+%typemap(imtype)  (const char *STRING, size_t LENGTH) "string"
+%typemap(dtype)   (const char *STRING, size_t LENGTH) "string"
+%typemap(ctype,default="={0,0}") (const char *STRING, size_t LENGTH) "SWIG_c_dstring"
+%typemap(din, nativepointer="std.conv.to!string($dinput)") (const char *STRING, size_t LENGTH) "$dinput"
+%typemap(freearg) (const char *STRING, size_t LENGTH) ""
+%typemap(in, canthrow=1) (const char *STRING, size_t LENGTH) %{
+  $1 = ($1_ltype)$input.str;
+  $2 = ($2_ltype)$input.len;
+%}
+%typemap(argout)  (const char *STRING, size_t LENGTH) {
+  $input.str = (char *)$1;
+  $input.len = (size_t)$2;
+}
+%typemap(directorin) (const char *STRING, size_t LENGTH) {
+  $input.str = (char *)$1;
+  $input.len = (size_t)$2;
+}
+%typemap(ddirectorin) (const char *STRING, size_t LENGTH) "std.conv.to!string($winput)"
+%apply (const char *STRING, size_t LENGTH) { (char *STRING, size_t LENGTH) }
+/* Enable write-back for non-const version */
+%typemap(argout)  (char *STRING, size_t LENGTH) {
+  $input.str = (char *)$1;
+  $input.len = (size_t)$2;
+}
+%typemap(directorargout) (char *STRING, size_t LENGTH)
+{
+  $1 = ($1_ltype)$input.str;
+  $2 = ($2_ltype)$input.len;
+}
+%apply (char *STRING, size_t LENGTH) { (char *STRING, int LENGTH) }

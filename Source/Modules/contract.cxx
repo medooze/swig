@@ -4,7 +4,7 @@
  * terms also apply to certain portions of SWIG. The full details of the SWIG
  * license and copyrights can be found in the LICENSE and COPYRIGHT files
  * included with the SWIG source code as distributed by the SWIG developers
- * and at http://www.swig.org/legal.html.
+ * and at https://www.swig.org/legal.html.
  *
  * contract.cxx
  *
@@ -119,7 +119,7 @@ Hash *Contracts::ContractSplit(Node *n) {
 }
 
 /* This function looks in base classes and collects contracts found */
-void inherit_contracts(Node *c, Node *n, Hash *contracts, Hash *messages) {
+static void inherit_contracts(Node *c, Node *n, Hash *contracts, Hash *messages) {
 
   Node *b, *temp;
   String *name, *type, *local_decl, *base_decl;

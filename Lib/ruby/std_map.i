@@ -214,7 +214,7 @@
 	  VALUE k = swig::from<Map::key_type>(i->first);
 	  VALUE v = swig::from<Map::mapped_type>(i->second);
 	  if ( RTEST( rb_yield_values(2, k, v) ) )
-	    $self->insert(r->end(), *i);
+	    r->insert(r->end(), *i);
 	}
 	
       return r;
@@ -344,7 +344,11 @@
     }
 
     void __setitem__(const key_type& key, const mapped_type& x) throw (std::out_of_range) {
+%#ifdef __cpp_lib_map_try_emplace
+      (*self).insert_or_assign(key, x);
+%#else
       (*self)[key] = x;
+%#endif
     }
 
   VALUE inspect()

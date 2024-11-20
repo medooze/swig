@@ -4,7 +4,7 @@
  * terms also apply to certain portions of SWIG. The full details of the SWIG
  * license and copyrights can be found in the LICENSE and COPYRIGHT files
  * included with the SWIG source code as distributed by the SWIG developers
- * and at http://www.swig.org/legal.html.
+ * and at https://www.swig.org/legal.html.
  *
  * cwrap.c
  *
@@ -14,6 +14,8 @@
 
 #include "swig.h"
 #include "cparse.h"
+
+extern int UseWrapperSuffix;
 
 static const char *cresult_variable_name = "result";
 
@@ -110,11 +112,9 @@ static String *Swig_clocal(SwigType *t, const_String_or_char_ptr name, const_Str
   default:
     if (value) {
       String *lcaststr = SwigType_lcaststr(t, value);
-      String *lstr = SwigType_lstr(t, 0);
       String *lstrn = SwigType_lstr(t, name);
-      Printf(decl, "%s = (%s) %s", lstrn, lstr, lcaststr);
+      Printf(decl, "%s = %s", lstrn, lcaststr);
       Delete(lcaststr);
-      Delete(lstr);
       Delete(lstrn);
     } else {
       String *lstrname = SwigType_lstr(t, name);
@@ -158,7 +158,7 @@ String *Swig_wrapped_var_type(SwigType *t, int varcref) {
   return ty;
 }
 
-String *Swig_wrapped_member_var_type(SwigType *t, int varcref) {
+static String *Swig_wrapped_member_var_type(SwigType *t, int varcref) {
   SwigType *ty;
 
   if (!Strstr(t, "enum $unnamed")) {
@@ -229,7 +229,7 @@ int Swig_cargs(Wrapper *w, ParmList *p) {
     SwigType *pt = Getattr(p, "type");
     if ((SwigType_type(pt) != T_VOID)) {
       String *local = 0;
-      String *type = Getattr(p, "type");
+      SwigType *type = SwigType_typedef_resolve_all(pt);
       /* default values only emitted if in compact default args mode */
       String *pvalue = (compactdefargs) ? Getattr(p, "value") : 0;
 
@@ -240,27 +240,13 @@ int Swig_cargs(Wrapper *w, ParmList *p) {
       int tycode = SwigType_type(type);
       if (tycode == T_REFERENCE) {
 	if (pvalue) {
-	  SwigType *tvalue;
-	  String *defname, *defvalue, *rvalue, *qvalue;
-	  rvalue = SwigType_typedef_resolve_all(pvalue);
-	  qvalue = SwigType_typedef_qualified(rvalue);
-	  defname = NewStringf("%s_defvalue", lname);
-	  tvalue = Copy(type);
-	  SwigType_del_reference(tvalue);
-	  tycode = SwigType_type(tvalue);
-	  if (tycode != T_USER) {
-	    /* plain primitive type, we copy the def value */
-	    String *lstr = SwigType_lstr(tvalue, defname);
-	    defvalue = NewStringf("%s = %s", lstr, qvalue);
-	    Delete(lstr);
-	  } else {
-	    /* user type, we copy the reference value */
-	    String *str = SwigType_str(type, defname);
-	    defvalue = NewStringf("%s = %s", str, qvalue);
-	    Delete(str);
-	  }
+	  String *rvalue = SwigType_typedef_resolve_all(pvalue);
+	  String *qvalue = SwigType_typedef_qualified(rvalue);
+	  String *defname = NewStringf("%s_defvalue", lname);
+	  String *str = SwigType_str(pt, defname);
+	  String *defvalue = NewStringf("%s = %s", str, qvalue);
 	  Wrapper_add_localv(w, defname, defvalue, NIL);
-	  Delete(tvalue);
+	  Delete(str);
 	  Delete(rvalue);
 	  Delete(qvalue);
 	  Delete(defname);
@@ -268,33 +254,19 @@ int Swig_cargs(Wrapper *w, ParmList *p) {
 	}
       } else if (tycode == T_RVALUE_REFERENCE) {
 	if (pvalue) {
-	  SwigType *tvalue;
-	  String *defname, *defvalue, *rvalue, *qvalue;
-	  rvalue = SwigType_typedef_resolve_all(pvalue);
-	  qvalue = SwigType_typedef_qualified(rvalue);
-	  defname = NewStringf("%s_defrvalue", lname);
-	  tvalue = Copy(type);
-	  SwigType_del_rvalue_reference(tvalue);
-	  tycode = SwigType_type(tvalue);
-	  if (tycode != T_USER) {
-	    /* plain primitive type, we copy the def value */
-	    String *lstr = SwigType_lstr(tvalue, defname);
-	    defvalue = NewStringf("%s = %s", lstr, qvalue);
-	    Delete(lstr);
-	  } else {
-	    /* user type, we copy the reference value */
-	    String *str = SwigType_str(type, defname);
-	    defvalue = NewStringf("%s = %s", str, qvalue);
-	    Delete(str);
-	  }
+	  String *rvalue = SwigType_typedef_resolve_all(pvalue);
+	  String *qvalue = SwigType_typedef_qualified(rvalue);
+	  String *defname = NewStringf("%s_defrvalue", lname);
+	  String *str = SwigType_str(pt, defname);
+	  String *defvalue = NewStringf("%s = %s", str, qvalue);
 	  Wrapper_add_localv(w, defname, defvalue, NIL);
-	  Delete(tvalue);
+	  Delete(str);
 	  Delete(rvalue);
 	  Delete(qvalue);
 	  Delete(defname);
 	  Delete(defvalue);
 	}
-      } else if (!pvalue && ((tycode == T_POINTER) || (tycode == T_STRING) || (tycode == T_WSTRING))) {
+      } else if (!pvalue && ((tycode == T_POINTER) || (tycode == T_STRING) || (tycode == T_WSTRING) || (tycode == T_ARRAY))) {
 	pvalue = (String *) "0";
       }
       if (!altty) {
@@ -427,10 +399,14 @@ String *Swig_cfunction_call(const_String_or_char_ptr name, ParmList *parms) {
       String *rcaststr = SwigType_rcaststr(rpt, pname);
 
       if (comma) {
-	Printv(func, ",", rcaststr, NIL);
-      } else {
-	Append(func, rcaststr);
+	Append(func, ",");
       }
+
+      if (cparse_cplusplus && SwigType_type(rpt) == T_USER)
+	Printv(func, "SWIG_STD_MOVE(", rcaststr, ")", NIL);
+      else
+	Printv(func, rcaststr, NIL);
+
       Delete(rpt);
       Delete(pname);
       Delete(rcaststr);
@@ -526,7 +502,10 @@ static String *Swig_cmethod_call(const_String_or_char_ptr name, ParmList *parms,
       String *rcaststr = SwigType_rcaststr(pt, pname);
       if (comma)
 	Append(func, ",");
-      Append(func, rcaststr);
+      if (cparse_cplusplus && SwigType_type(pt) == T_USER)
+	Printv(func, "SWIG_STD_MOVE(", rcaststr, ")", NIL);
+      else
+	Printv(func, rcaststr, NIL);
       Delete(rcaststr);
       Delete(pname);
       comma = 1;
@@ -566,7 +545,7 @@ String *Swig_cconstructor_call(const_String_or_char_ptr name) {
  *
  * ----------------------------------------------------------------------------- */
 
-String *Swig_cppconstructor_base_call(const_String_or_char_ptr name, ParmList *parms, int skip_self) {
+static String *Swig_cppconstructor_base_call(const_String_or_char_ptr name, ParmList *parms, int skip_self) {
   String *func;
   String *nname;
   int i = 0;
@@ -599,7 +578,10 @@ String *Swig_cppconstructor_base_call(const_String_or_char_ptr name, ParmList *p
 	  pname = Copy(Getattr(p, "name"));
       }
       rcaststr = SwigType_rcaststr(pt, pname);
-      Append(func, rcaststr);
+      if (cparse_cplusplus && SwigType_type(pt) == T_USER)
+	Printv(func, "SWIG_STD_MOVE(", rcaststr, ")", NIL);
+      else
+	Printv(func, rcaststr, NIL);
       Delete(rcaststr);
       comma = 1;
       Delete(pname);
@@ -615,11 +597,11 @@ String *Swig_cppconstructor_call(const_String_or_char_ptr name, ParmList *parms)
   return Swig_cppconstructor_base_call(name, parms, 0);
 }
 
-String *Swig_cppconstructor_nodirector_call(const_String_or_char_ptr name, ParmList *parms) {
+static String *Swig_cppconstructor_nodirector_call(const_String_or_char_ptr name, ParmList *parms) {
   return Swig_cppconstructor_base_call(name, parms, 1);
 }
 
-String *Swig_cppconstructor_director_call(const_String_or_char_ptr name, ParmList *parms) {
+static String *Swig_cppconstructor_director_call(const_String_or_char_ptr name, ParmList *parms) {
   return Swig_cppconstructor_base_call(name, parms, 0);
 }
 
@@ -869,7 +851,7 @@ void Swig_replace_special_variables(Node *n, Node *parentnode, String *code) {
     String *parentclassname = 0;
     if (parentclass)
       parentclassname = Getattr(parentclass, "name");
-    Replaceall(code, "$parentclassname", parentclassname ? SwigType_str(parentclassname, "") : "");
+    Replaceall(code, "$parentclassname", parentclassname ? SwigType_str(parentclassname, NULL) : "");
   }
 }
 
@@ -887,7 +869,7 @@ static String *extension_code(Node *n, const String *function_name, ParmList *pa
   String *rt_sig = SwigType_str(return_type, sig);
   String *body = NewStringf("SWIGINTERN %s", rt_sig);
   Printv(body, code, "\n", NIL);
-  if (Strstr(body, "$")) {
+  if (Strchr(body, '$')) {
     Swig_replace_special_variables(n, parentNode(parentNode(n)), body);
     if (self)
       Replaceall(body, "$self", self);
@@ -1069,7 +1051,7 @@ int Swig_MethodToFunction(Node *n, const_String_or_char_ptr nspace, String *clas
     String *code = Getattr(n, "code");
     String *cname = Getattr(n, "extendsmartclassname") ? Getattr(n, "extendsmartclassname") : classname;
     String *membername = Swig_name_member(nspace, cname, name);
-    String *mangled = Swig_name_mangle(membername);
+    String *mangled = Swig_name_mangle_string(membername);
     int is_smart_pointer = flags & CWRAP_SMART_POINTER;
 
     type = Getattr(n, "type");
@@ -1079,13 +1061,13 @@ int Swig_MethodToFunction(Node *n, const_String_or_char_ptr nspace, String *clas
        in C.
 
        But when not using the suffix used for overloaded functions, we still need to ensure that the
-       wrapper name doesn't conflict with any wrapper functions, so make it sufficiently unique by
-       appending a suffix similar to the one used for overloaded functions to it.
+       wrapper name doesn't conflict with any wrapper functions for some languages, so optionally make
+       it sufficiently unique by appending a suffix similar to the one used for overloaded functions to it.
      */
     if (code) {
       if (Getattr(n, "sym:overloaded")) {
 	Append(mangled, Getattr(defaultargs ? defaultargs : n, "sym:overname"));
-      } else {
+      } else if (UseWrapperSuffix) {
 	Append(mangled, "__SWIG");
       }
     }
@@ -1166,8 +1148,7 @@ int Swig_MethodToFunction(Node *n, const_String_or_char_ptr nspace, String *clas
  * ----------------------------------------------------------------------------- */
 
 Node *Swig_methodclass(Node *n) {
-  Node *nodetype = nodeType(n);
-  if (Cmp(nodetype, "class") == 0)
+  if (Equal(nodeType(n), "class"))
     return n;
   return GetFlag(n, "feature:extend") ? parentNode(parentNode(n)) : parentNode(n);
 }
@@ -1232,7 +1213,7 @@ int Swig_ConstructorToFunction(Node *n, const_String_or_char_ptr nspace, String 
     String *defaultargs = Getattr(n, "defaultargs");
     String *code = Getattr(n, "code");
     String *membername = Swig_name_construct(nspace, classname);
-    String *mangled = Swig_name_mangle(membername);
+    String *mangled = Swig_name_mangle_string(membername);
 
     /* Check if the constructor is overloaded.   If so, and it has code attached, we append an extra suffix
        to avoid a name-clash in the generated wrappers.  This allows overloaded constructors to be defined
@@ -1350,7 +1331,7 @@ int Swig_DestructorToFunction(Node *n, const_String_or_char_ptr nspace, String *
     String *call;
     String *membername, *mangled, *code;
     membername = Swig_name_destroy(nspace, classname);
-    mangled = Swig_name_mangle(membername);
+    mangled = Swig_name_mangle_string(membername);
     code = Getattr(n, "code");
     if (code) {
       Swig_add_extension_code(n, mangled, p, type, code, cparse_cplusplus, "self");
@@ -1437,7 +1418,7 @@ int Swig_MembersetToFunction(Node *n, String *classname, int flags) {
 
     String *sname = Swig_name_set(0, name);
     String *membername = Swig_name_member(0, classname, sname);
-    String *mangled = Swig_name_mangle(membername);
+    String *mangled = Swig_name_mangle_string(membername);
 
     if (code) {
       /* I don't think this ever gets run - WSF */
@@ -1519,7 +1500,7 @@ int Swig_MembergetToFunction(Node *n, String *classname, int flags) {
 
     String *gname = Swig_name_get(0, name);
     String *membername = Swig_name_member(0, classname, gname);
-    String *mangled = Swig_name_mangle(membername);
+    String *mangled = Swig_name_mangle_string(membername);
 
     if (code) {
       /* I don't think this ever gets run - WSF */
@@ -1571,7 +1552,7 @@ int Swig_VarsetToFunction(Node *n, int flags) {
 
   if (flags & CWRAP_EXTEND) {
     String *sname = Swig_name_set(0, name);
-    String *mangled = Swig_name_mangle(sname);
+    String *mangled = Swig_name_mangle_string(sname);
     String *call = Swig_cfunction_call(mangled, parms);
     String *cres = NewStringf("%s;", call);
     Setattr(n, "wrap:action", cres);
@@ -1625,7 +1606,7 @@ int Swig_VargetToFunction(Node *n, int flags) {
 
   if (flags & CWRAP_EXTEND) {
     String *sname = Swig_name_get(0, name);
-    String *mangled = Swig_name_mangle(sname);
+    String *mangled = Swig_name_mangle_string(sname);
     call = Swig_cfunction_call(mangled, 0);
     cres = Swig_cresult(ty, Swig_cresult_name(), call);
     Setattr(n, "wrap:action", cres);
@@ -1634,9 +1615,7 @@ int Swig_VargetToFunction(Node *n, int flags) {
   } else {
     String *nname = 0;
     if (Equal(nodeType(n), "constant")) {
-      String *rawval = Getattr(n, "rawval");
-      String *value = rawval ? rawval : Getattr(n, "value");
-      nname = NewStringf("(%s)", value);
+      nname = NewStringf("(%s)", Getattr(n, "value"));
     } else {
       nname = SwigType_namestr(name);
     }

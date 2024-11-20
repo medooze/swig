@@ -13,6 +13,9 @@ SCRIPTSUFFIX	= _runme.go
 SO = @SO@
 
 HAVE_CXX11   = @HAVE_CXX11@
+HAVE_CXX14   = @HAVE_CXX14@
+HAVE_CXX17   = @HAVE_CXX17@
+HAVE_CXX20   = @HAVE_CXX20@
 srcdir         = @srcdir@
 top_srcdir     = @top_srcdir@
 top_builddir   = @top_builddir@
@@ -28,6 +31,9 @@ MULTI_CPP_TEST_CASES = \
 include $(srcdir)/../common.mk
 
 INCLUDES = -I$(abs_top_srcdir)/$(EXAMPLES)/$(TEST_SUITE)
+
+# Ensure testsuite remains free from SWIG warnings.
+SWIGOPT += -Werror
 
 .SUFFIXES: .cpptest .ctest .multicpptest
 
@@ -96,8 +102,7 @@ run_testcase = \
 	  cp gopath/src/$*/* gopath/src/swigtests/$*/; \
 	  mkdir gopath/src/$*/runme 2>/dev/null || true; \
 	  cp $(SCRIPTDIR)/$(SCRIPTPREFIX)$*$(SCRIPTSUFFIX) gopath/src/$*/runme/runme.go; \
-	  (cd gopath/src/$*/runme && $(COMPILETOOL) $(GO) build `if $(GOGCC); then echo -compiler=gccgo; fi` -o runme runme.go); \
-	  cp gopath/src/$*/runme/runme $*_runme; \
+	  (cd gopath/src/$*/runme && $(COMPILETOOL) $(GO) build `if $(GOGCC); then echo -compiler=gccgo; fi` -o ../../../../$*_runme runme.go); \
 	  env LD_LIBRARY_PATH=.:$$LD_LIBRARY_PATH $(RUNTOOL) ./$*_runme; \
 	fi
 
@@ -118,8 +123,7 @@ run_testcase_cpp = \
 	  cp gopath/src/$*/* gopath/src/swigtests/$*/; \
 	  mkdir gopath/src/$*/runme 2>/dev/null || true; \
 	  cp $(SCRIPTDIR)/$(SCRIPTPREFIX)$*$(SCRIPTSUFFIX) gopath/src/$*/runme/runme.go; \
-	  (cd gopath/src/$*/runme && $(COMPILETOOL) $(GO) build `if $(GOGCC); then echo -compiler=gccgo; fi` -o runme runme.go); \
-	  cp gopath/src/$*/runme/runme $*_runme; \
+	  (cd gopath/src/$*/runme && $(COMPILETOOL) $(GO) build `if $(GOGCC); then echo -compiler=gccgo; fi` -o ../../../../$*_runme runme.go); \
 	  env LD_LIBRARY_PATH=.:$$LD_LIBRARY_PATH $(RUNTOOL) ./$*_runme; \
 	fi
 
@@ -139,7 +143,7 @@ run_multi_testcase = \
 	  CGO_LDFLAGS="$(LDFLAGS) -lm"; \
 	  export CGO_LDFLAGS; \
 	  (cd gopath/$*/src/$* && \
-	    $(GO) build `if $(GOGCC); then echo -compiler=gccgo; fi` -o ../../../../$*_runme) && \
+	    $(COMPILETOOL) $(GO) build `if $(GOGCC); then echo -compiler=gccgo; fi` -o ../../../../$*_runme) && \
 	  env LD_LIBRARY_PATH=.:$$LD_LIBRARY_PATH $(RUNTOOL) ./$*_runme; \
 	fi
 

@@ -4,7 +4,7 @@
  * terms also apply to certain portions of SWIG. The full details of the SWIG
  * license and copyrights can be found in the LICENSE and COPYRIGHT files
  * included with the SWIG source code as distributed by the SWIG developers
- * and at http://www.swig.org/legal.html.
+ * and at https://www.swig.org/legal.html.
  *
  * scanner.c
  *
@@ -19,6 +19,7 @@
 #include "parser.h"
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 /* Scanner object */
 static Scanner *scan = 0;
@@ -43,17 +44,21 @@ int cparse_cplusplusout = 0;
 /* To allow better error reporting */
 String *cparse_unknown_directive = 0;
 
+// Default-initialised instances of token types to avoid uninitialised fields.
+// The compiler will initialise all fields to zero or NULL for us.
+
+static const struct Define default_dtype;
+
 /* Private vars */
 static int scan_init = 0;
 static int num_brace = 0;
-static int last_brace = 0;
 static int last_id = 0;
 static int rename_active = 0;
 
 /* Doxygen comments scanning */
 int scan_doxygen_comments = 0;
 
-int isStructuralDoxygen(String *s) {
+static int isStructuralDoxygen(String *s) {
   static const char* const structuralTags[] = {
     "addtogroup",
     "callgraph",
@@ -123,7 +128,7 @@ void Swig_cparse_cplusplusout(int v) {
  * Initialize buffers
  * ------------------------------------------------------------------------- */
 
-void scanner_init() {
+static void scanner_init(void) {
   scan = NewScanner();
   Scanner_idstart(scan,"%");
   scan_init = 1;
@@ -142,14 +147,14 @@ void scanner_file(DOHFile * f) {
 }
 
 /* ----------------------------------------------------------------------------
- * start_inline(char *text, int line)
+ * scanner_start_inline(String *text, int line)
  *
  * Take a chunk of text and recursively feed it back into the scanner.  Used
  * by the %inline directive.
  * ------------------------------------------------------------------------- */
 
-void start_inline(char *text, int line) {
-  String *stext = NewString(text);
+void scanner_start_inline(String *text, int line) {
+  String *stext = Copy(text);
 
   Seek(stext,0,SEEK_SET);
   Setfile(stext,cparse_file);
@@ -163,15 +168,17 @@ void start_inline(char *text, int line) {
  *
  * Skips a piece of code enclosed in begin/end symbols such as '{...}' or
  * (...).  Ignores symbols inside comments or strings.
+ *
+ * Returns 0 if successfully skipped, -1 if EOF found first.
  * ----------------------------------------------------------------------------- */
 
-void skip_balanced(int startchar, int endchar) {
+int skip_balanced(int startchar, int endchar) {
   int start_line = Scanner_line(scan);
   Clear(scanner_ccode);
 
   if (Scanner_skip_balanced(scan,startchar,endchar) < 0) {
     Swig_error(cparse_file, start_line, "Missing '%c'. Reached end of input.\n", endchar);
-    return;
+    return -1;
   }
 
   cparse_line = Scanner_line(scan);
@@ -180,7 +187,7 @@ void skip_balanced(int startchar, int endchar) {
   Append(scanner_ccode, Scanner_text(scan));
   if (endchar == '}')
     num_brace--;
-  return;
+  return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -274,7 +281,6 @@ static int yylook(void) {
       }
       break;
     case SWIG_TOKEN_LBRACE:
-      last_brace = num_brace;
       num_brace++;
       return LBRACE;
     case SWIG_TOKEN_EQUAL:
@@ -325,12 +331,14 @@ static int yylook(void) {
       return ARROW;
     case SWIG_TOKEN_PERIOD:
       return PERIOD;
-    case SWIG_TOKEN_MODULO:
+    case SWIG_TOKEN_PERCENT:
       return MODULO;
     case SWIG_TOKEN_COLON:
       return COLON;
     case SWIG_TOKEN_DCOLONSTAR:
       return DSTAR;
+    case SWIG_TOKEN_LTEQUALGT:
+      return LESSEQUALGREATER;
       
     case SWIG_TOKEN_DCOLON:
       {
@@ -354,18 +362,28 @@ static int yylook(void) {
     case SWIG_TOKEN_ELLIPSIS:
       return ELLIPSIS;
 
+    case SWIG_TOKEN_LLBRACKET:
+      do {
+        tok = Scanner_token(scan);
+      } while ((tok != SWIG_TOKEN_RRBRACKET) && (tok > 0));
+      if (tok <= 0) {
+        Swig_error(cparse_file, cparse_line, "Unbalanced double brackets, missing closing (']]'). Reached end of input.\n");
+      }
+      break;
+
+    case SWIG_TOKEN_RRBRACKET:
+      /* Turn an unmatched ]] back into two ] - e.g. `a[a[0]]` */
+      scanner_next_token(RBRACKET);
+      return RBRACKET;
+
       /* Look for multi-character sequences */
       
-    case SWIG_TOKEN_RSTRING:
-      yylval.type = NewString(Scanner_text(scan));
-      return TYPE_RAW;
-      
     case SWIG_TOKEN_STRING:
-      yylval.id = Swig_copy_string(Char(Scanner_text(scan)));
+      yylval.str = NewString(Scanner_text(scan));
       return STRING;
 
     case SWIG_TOKEN_WSTRING:
-      yylval.id = Swig_copy_string(Char(Scanner_text(scan)));
+      yylval.str = NewString(Scanner_text(scan));
       return WSTRING;
       
     case SWIG_TOKEN_CHAR:
@@ -403,9 +421,14 @@ static int yylook(void) {
       return NUM_ULONGLONG;
       
     case SWIG_TOKEN_DOUBLE:
+      return NUM_DOUBLE;
+
     case SWIG_TOKEN_FLOAT:
       return NUM_FLOAT;
       
+    case SWIG_TOKEN_LONGDOUBLE:
+      return NUM_LONGDOUBLE;
+
     case SWIG_TOKEN_BOOL:
       return NUM_BOOL;
       
@@ -413,7 +436,6 @@ static int yylook(void) {
       Scanner_skip_line(scan);
       yylval.id = Swig_copy_string(Char(Scanner_text(scan)));
       return POUND;
-      break;
       
     case SWIG_TOKEN_CODEBLOCK:
       yylval.str = NewString(Scanner_text(scan));
@@ -516,31 +538,21 @@ static int yylook(void) {
     case SWIG_TOKEN_BACKSLASH:
       break;
     default:
-      Swig_error(cparse_file, cparse_line, "Illegal token '%s'.\n", Scanner_text(scan));
-      return (ILLEGAL);
+      Swig_error(cparse_file, cparse_line, "Unexpected token '%s'.\n", Scanner_text(scan));
+      Exit(EXIT_FAILURE);
     }
   }
 }
 
-static int check_typedef = 0;
-
 void scanner_set_location(String *file, int line) {
   Scanner_set_location(scan,file,line-1);
-}
-
-void scanner_check_typedef() {
-  check_typedef = 1;
-}
-
-void scanner_ignore_typedef() {
-  check_typedef = 0;
 }
 
 void scanner_last_id(int x) {
   last_id = x;
 }
 
-void scanner_clear_rename() {
+void scanner_clear_rename(void) {
   rename_active = 0;
 }
 
@@ -554,7 +566,7 @@ void scanner_set_main_input_file(String *file) {
   main_input_file = file;
 }
 
-String *scanner_get_main_input_file() {
+String *scanner_get_main_input_file(void) {
   return main_input_file;
 }
 
@@ -604,32 +616,80 @@ int yylex(void) {
   switch (l) {
 
   case NUM_INT:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_INT;
+    goto num_common;
+  case NUM_DOUBLE:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_DOUBLE;
+    goto num_common;
   case NUM_FLOAT:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_FLOAT;
+    goto num_common;
+  case NUM_LONGDOUBLE:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_LONGDOUBLE;
+    goto num_common;
   case NUM_ULONG:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_ULONG;
+    goto num_common;
   case NUM_LONG:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_LONG;
+    goto num_common;
   case NUM_UNSIGNED:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_UINT;
+    goto num_common;
   case NUM_LONGLONG:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_LONGLONG;
+    goto num_common;
   case NUM_ULONGLONG:
-  case NUM_BOOL:
-    if (l == NUM_INT)
-      yylval.dtype.type = T_INT;
-    if (l == NUM_FLOAT)
-      yylval.dtype.type = T_DOUBLE;
-    if (l == NUM_ULONG)
-      yylval.dtype.type = T_ULONG;
-    if (l == NUM_LONG)
-      yylval.dtype.type = T_LONG;
-    if (l == NUM_UNSIGNED)
-      yylval.dtype.type = T_UINT;
-    if (l == NUM_LONGLONG)
-      yylval.dtype.type = T_LONGLONG;
-    if (l == NUM_ULONGLONG)
-      yylval.dtype.type = T_ULONGLONG;
-    if (l == NUM_BOOL)
-      yylval.dtype.type = T_BOOL;
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_ULONGLONG;
+    goto num_common;
+num_common: {
     yylval.dtype.val = NewString(Scanner_text(scan));
-    yylval.dtype.bitfield = 0;
-    yylval.dtype.throws = 0;
+    const char *c = Char(yylval.dtype.val);
+    if (c[0] == '0') {
+      // Convert to base 10 using strtoull().
+      unsigned long long value;
+      char *e;
+      errno = 0;
+      if (c[1] == 'b' || c[1] == 'B') {
+	/* strtoull() doesn't handle binary literal prefixes so skip the prefix
+	 * and specify base 2 explicitly. */
+	value = strtoull(c + 2, &e, 2);
+      } else {
+	value = strtoull(c, &e, 0);
+      }
+      if (errno != ERANGE) {
+	while (*e && strchr("ULul", *e)) ++e;
+      }
+      if (errno != ERANGE && *e == '\0') {
+	yylval.dtype.numval = NewStringf("%llu", value);
+      } else {
+	// Our unsigned long long isn't wide enough or this isn't an integer.
+      }
+    } else {
+      const char *e = c;
+      while (isdigit((unsigned char)*e)) ++e;
+      int len = e - c;
+      while (*e && strchr("ULul", *e)) ++e;
+      if (*e == '\0') {
+        yylval.dtype.numval = NewStringWithSize(c, len);
+      }
+    }
+    return (l);
+  }
+  case NUM_BOOL:
+    yylval.dtype = default_dtype;
+    yylval.dtype.type = T_BOOL;
+    yylval.dtype.val = NewString(Scanner_text(scan));
+    yylval.dtype.numval = NewString(Equal(yylval.dtype.val, "false") ? "0" : "1");
     return (l);
 
   case ID:
@@ -702,12 +762,6 @@ int yylex(void) {
 
       /* C++ keywords */
       if (cparse_cplusplus) {
-	if (strcmp(yytext, "and") == 0)
-	  return (LAND);
-	if (strcmp(yytext, "or") == 0)
-	  return (LOR);
-	if (strcmp(yytext, "not") == 0)
-	  return (LNOT);
 	if (strcmp(yytext, "class") == 0)
 	  return (CLASS);
 	if (strcmp(yytext, "private") == 0)
@@ -785,9 +839,12 @@ int yylex(void) {
 	    yylval.str = s;
 	    return OPERATOR;
 	  } else if (nexttok == SWIG_TOKEN_ID) {
-	    /* We have an identifier.  This could be any number of things. It could be a named version of
-               an operator (e.g., 'and_eq') or it could be a conversion operator.   To deal with this, we're
-               going to read tokens until we encounter a ( or ;.  Some care is needed for formatting. */
+	    /* We have an identifier.  It could be "new" or "delete",
+	     * potentially followed by "[]", or it could be a conversion
+	     * operator (it can't be "and_eq" or similar as those are returned
+	     * as SWIG_TOKEN_ANDEQUAL, etc by Scanner_token()).  To deal with
+	     * this we read tokens until we encounter a suitable terminating
+	     * token.  Some care is needed for formatting. */
 	    int needspace = 1;
 	    int termtoken = 0;
 	    const char *termvalue = 0;
@@ -839,17 +896,6 @@ int yylex(void) {
 		    || (strcmp(t, "delete") == 0)
 		    || (strcmp(t, "new[]") == 0)
 		    || (strcmp(t, "delete[]") == 0)
-		    || (strcmp(t, "and") == 0)
-		    || (strcmp(t, "and_eq") == 0)
-		    || (strcmp(t, "bitand") == 0)
-		    || (strcmp(t, "bitor") == 0)
-		    || (strcmp(t, "compl") == 0)
-		    || (strcmp(t, "not") == 0)
-		    || (strcmp(t, "not_eq") == 0)
-		    || (strcmp(t, "or") == 0)
-		    || (strcmp(t, "or_eq") == 0)
-		    || (strcmp(t, "xor") == 0)
-		    || (strcmp(t, "xor_eq") == 0)
 		    )) {
 		/*              retract(strlen(t)); */
 
@@ -902,6 +948,8 @@ int yylex(void) {
 	  return (USING);
 	if (strcmp(yytext, "namespace") == 0)
 	  return (NAMESPACE);
+	if (strcmp(yytext, "alignof") == 0)
+	  return (ALIGNOF);
 	if (strcmp(yytext, "override") == 0) {
 	  last_id = 1;
 	  return (OVERRIDE);
@@ -913,6 +961,11 @@ int yylex(void) {
       } else {
 	if (strcmp(yytext, "class") == 0) {
 	  Swig_warning(WARN_PARSE_CLASS_KEYWORD, cparse_file, cparse_line, "class keyword used, but not in C++ mode.\n");
+	}
+	if (strcmp(yytext, "_Bool") == 0) {
+	  /* C99 boolean type. */
+	  yylval.type = NewSwigType(T_BOOL);
+	  return (TYPE_BOOL);
 	}
 	if (strcmp(yytext, "_Complex") == 0) {
 	  yylval.type = NewSwigType(T_COMPLEX);
@@ -940,7 +993,6 @@ int yylex(void) {
 	return (SIZEOF);
 
       if (strcmp(yytext, "typedef") == 0) {
-	yylval.intvalue = 0;
 	return (TYPEDEF);
       }
 
@@ -960,8 +1012,6 @@ int yylex(void) {
 	return (MODULE);
       if (strcmp(yytext, "%insert") == 0)
 	return (INSERT);
-      if (strcmp(yytext, "%name") == 0)
-	return (NAME);
       if (strcmp(yytext, "%rename") == 0) {
 	rename_active = 1;
 	return (RENAME);
@@ -976,18 +1026,9 @@ int yylex(void) {
 	return (BEGINFILE);
       if (strcmp(yytext, "%endoffile") == 0)
 	return (ENDOFFILE);
-      if (strcmp(yytext, "%val") == 0) {
-	Swig_warning(WARN_DEPRECATED_VAL, cparse_file, cparse_line, "%%val directive deprecated (ignored).\n");
-	return (yylex());
-      }
-      if (strcmp(yytext, "%out") == 0) {
-	Swig_warning(WARN_DEPRECATED_OUT, cparse_file, cparse_line, "%%out directive deprecated (ignored).\n");
-	return (yylex());
-      }
       if (strcmp(yytext, "%constant") == 0)
 	return (CONSTANT);
       if (strcmp(yytext, "%typedef") == 0) {
-	yylval.intvalue = 1;
 	return (TYPEDEF);
       }
       if (strcmp(yytext, "%native") == 0)
@@ -1010,8 +1051,6 @@ int yylex(void) {
         rename_active = 1;
 	return (FEATURE);
       }
-      if (strcmp(yytext, "%except") == 0)
-	return (EXCEPT);
       if (strcmp(yytext, "%importfile") == 0)
 	return (IMPORT);
       if (strcmp(yytext, "%echo") == 0)
@@ -1034,7 +1073,7 @@ int yylex(void) {
 
       /* Note down the apparently unknown directive for error reporting - if
        * we end up reporting a generic syntax error we'll instead report an
-       * error for his as an unknown directive.  Then we treat it as MODULO
+       * error for this as an unknown directive.  Then we treat it as MODULO
        * (`%`) followed by an identifier and if that parses OK then
        * `cparse_unknown_directive` doesn't get used.
        *
@@ -1050,21 +1089,11 @@ int yylex(void) {
       Delete(stext);
       return (MODULO);
     }
-    /* Have an unknown identifier, as a last step, we'll do a typedef lookup on it. */
 
-    /* Need to fix this */
-    if (check_typedef) {
-      if (SwigType_istypedef(yytext)) {
-	yylval.type = NewString(yytext);
-	return (TYPE_TYPEDEF);
-      }
-    }
     yylval.id = Swig_copy_string(yytext);
     last_id = 1;
     return (ID);
   case POUND:
-    return yylex();
-  case SWIG_TOKEN_COMMENT:
     return yylex();
   default:
     return (l);

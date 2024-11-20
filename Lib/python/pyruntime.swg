@@ -4,14 +4,7 @@
 # include <math.h>
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER >= 1930
-/* Workaround what seems to be a bug in the Python headers with MSVC 2022.
- * https://github.com/swig/swig/issues/2090
- */
-# include <corecrt.h>
-#endif
-
-#ifndef SWIG_NO_PY_SSIZE_T_CLEAN
+#if !defined(PY_SSIZE_T_CLEAN) && !defined(SWIG_NO_PY_SSIZE_T_CLEAN)
 #define PY_SSIZE_T_CLEAN
 #endif
 
@@ -24,6 +17,13 @@
 
 #if defined(_DEBUG) && defined(SWIG_PYTHON_INTERPRETER_NO_DEBUG)
 /* Use debug wrappers with the Python release dll */
+
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+/* Workaround compilation errors when redefining _DEBUG in MSVC 2019 version 16.10 and later
+ * See https://github.com/swig/swig/issues/2090 */
+# include <corecrt.h>
+#endif
+
 # undef _DEBUG
 # include <Python.h>
 # define _DEBUG 1
@@ -31,9 +31,24 @@
 # include <Python.h>
 #endif
 
+#if !defined(SWIGPYTHON_BUILTIN) && PY_VERSION_HEX >= 0x03030000
+# define SWIG_HEAPTYPES
+
+/* Note: Currently this won't activate - it is in place ready for when the
+ * SWIGPYTHON_BUILTIN condition above gets removed. */
+# if PY_VERSION_HEX < 0x030c0000 && defined(SWIGPYTHON_BUILTIN)
+#  include <structmember.h>
+#  define Py_READONLY READONLY
+#  define Py_T_PYSSIZET T_PYSSIZET
+# endif
+#endif
+
 #if __GNUC__ >= 7
 #pragma GCC diagnostic pop
 #endif
+
+#include <stdio.h>
+#include <stdlib.h>
 %}
 
 %insert(runtime) "swigrun.swg";         /* SWIG API */

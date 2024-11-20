@@ -42,6 +42,12 @@ int someVar=42;
  */
 #define CONSTANT_VALUE 4242
 
+/**
+ * A two line
+ * constant comment
+ */
+#define CONSTANT_VALUE_TWO_LINE 5353
+
 /// SomeAnotherClass description
 class SomeAnotherClass
 {
@@ -62,6 +68,12 @@ public:
 
 	int classAttr3; ///< The class attribute post-comment
 									//!< with details
+
+	/**
+	 * The class attribute comment with
+	 * two lines of comments
+	 */
+	int classAttr4;
 
 	/**
 	 * The class method comment.
@@ -106,6 +118,12 @@ struct SomeAnotherStruct
 									 //!< with details
 
 	/**
+	 * The struct attribute comment with
+	 * two lines of comments
+	 */
+	int structAttr4;
+
+	/**
 	 * The struct method comment
 	 */
 	void structMethod()
@@ -131,6 +149,34 @@ struct SomeAnotherStruct
 	void structMethodExtended2(int a, int b)
 	{
 	}
+
+	/**
+	 * The struct static method one line comment
+	 */
+	static void structStaticMethod(int xxx, int yyy)
+	{
+	}
+
+	/**
+	 * The struct static method with parameters
+	 * Two lines of comments
+	 *
+	 * @param aaa Parameter aaa
+	 * @param bbb Parameter bbb
+	 */
+	static void structStaticMethod2(int aaa, int bbb)
+	{
+	}
+};
+
+struct Foo1636
+{
+  ///@{
+  /// groupmember1 description
+  int groupmember1;
+  /// groupmember2 description
+  int groupmember2;
+  ///@}
 };
 
 struct Foo1750

@@ -61,7 +61,7 @@ SWIG_From_dec(unsigned long)(unsigned long value)
     return SWIG_From(long)(%numeric_cast(value, long));
   } else {
     char temp[256]; 
-    sprintf(temp, "%lu", value);
+    SWIG_snprintf(temp, sizeof(temp), "%lu", value);
     return Tcl_NewStringObj(temp,-1);
   }
 }
@@ -82,7 +82,7 @@ SWIG_AsVal_dec(unsigned long)(Tcl_Obj *obj, unsigned long *val) {
        get it as a string so we can distinguish these cases. */
   }
   {
-    int len = 0;
+    Tcl_Size len = 0;
     const char *nptr = Tcl_GetStringFromObj(obj, &len);
     if (nptr && len > 0) {
       char *endptr;
@@ -122,7 +122,7 @@ SWIG_From_dec(long long)(long long value)
     return SWIG_From(long)(%numeric_cast(value,long));
   } else {    
     char temp[256]; 
-    sprintf(temp, "%lld", value);
+    SWIG_snprintf(temp, sizeof(temp), "%lld", value);
     return Tcl_NewStringObj(temp,-1);
   }
 }
@@ -136,30 +136,13 @@ SWIG_From_dec(long long)(long long value)
 SWIGINTERN int
 SWIG_AsVal_dec(long long)(Tcl_Obj *obj, long long *val)
 {
-  long v;
-  if (Tcl_GetLongFromObj(0,obj, &v) == TCL_OK) {
+  Tcl_WideInt v;
+  if (Tcl_GetWideIntFromObj(0, obj, &v) == TCL_OK) {
+    if (sizeof(v) > sizeof(*val) && (v < LLONG_MIN || v > LLONG_MAX)) {
+      return SWIG_OverflowError;
+    }
     if (val) *val = v;
     return SWIG_OK;
-  } else {
-    int len = 0;
-    const char *nptr = Tcl_GetStringFromObj(obj, &len);
-    if (nptr && len > 0) {
-      char *endptr;
-      long long v;
-      errno = 0;
-      v = strtoll(nptr, &endptr,0);
-      if (nptr[0] == '\0' || *endptr != '\0')
-	return SWIG_TypeError;
-      if ((v == LLONG_MAX || v == LLONG_MIN) && errno == ERANGE) {
-	errno = 0;
-	return SWIG_OverflowError;
-      } else {
-	if (*endptr == '\0') {
-	  if (val) *val = v;
-	  return SWIG_OK;
-	}
-      }
-    }
   }
   return SWIG_TypeError;
 }
@@ -180,7 +163,7 @@ SWIG_From_dec(unsigned long long)(unsigned long long value)
     return SWIG_From(long long)(%numeric_cast(value, long long));
   } else {
     char temp[256]; 
-    sprintf(temp, "%llu", value);
+    SWIG_snprintf(temp, sizeof(temp), "%llu", value);
     return Tcl_NewStringObj(temp,-1);
   }
 }
@@ -200,7 +183,7 @@ SWIG_AsVal_dec(unsigned long long)(Tcl_Obj *obj, unsigned long long *val)
     if (val) *val = (unsigned long) v;
     return SWIG_OK;
   } else {
-    int len = 0;
+    Tcl_Size len = 0;
     const char *nptr = Tcl_GetStringFromObj(obj, &len);
     if (nptr && len > 0) {
       char *endptr;

@@ -17,10 +17,6 @@
 
 #endif
 
-#ifndef Py_TYPE
-#  define Py_TYPE(op) ((op)->ob_type)
-#endif
-
 /* SWIG APIs for compatibility of both Python 2 & 3 */
 
 #if PY_VERSION_HEX >= 0x03000000
@@ -30,39 +26,29 @@
 #endif
 
 
-/* Warning: This function will allocate a new string in Python 3,
- * so please call SWIG_Python_str_DelForPy3(x) to free the space.
- */
-SWIGINTERN char*
-SWIG_Python_str_AsChar(PyObject *str)
+/* Wrapper around PyUnicode_AsUTF8AndSize - call Py_XDECREF on the returned pbytes when finished with the returned string */
+SWIGINTERN const char *
+SWIG_PyUnicode_AsUTF8AndSize(PyObject *str, Py_ssize_t *psize, PyObject **pbytes)
 {
 #if PY_VERSION_HEX >= 0x03030000
-  return (char *)PyUnicode_AsUTF8(str);
-#elif PY_VERSION_HEX >= 0x03000000
-  char *newstr = 0;
-  str = PyUnicode_AsUTF8String(str);
-  if (str) {
-    char *cstr;
-    Py_ssize_t len;
-    if (PyBytes_AsStringAndSize(str, &cstr, &len) != -1) {
-      newstr = (char *) malloc(len+1);
-      if (newstr)
-        memcpy(newstr, cstr, len+1);
-    }
-    Py_XDECREF(str);
-  }
-  return newstr;
+# if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x030A0000
+  *pbytes = NULL;
+  return PyUnicode_AsUTF8AndSize(str, psize);
+# else
+  const char *chars;
+  *pbytes = PyUnicode_AsUTF8String(str);
+  chars = *pbytes ? PyBytes_AsString(*pbytes) : NULL;
+  if (chars && psize)
+    *psize = PyBytes_Size(*pbytes);
+  return chars;
+# endif
 #else
-  return PyString_AsString(str);
+  char *chars = NULL;
+  *pbytes = NULL;
+  PyString_AsStringAndSize(str, &chars, psize);
+  return chars;
 #endif
 }
-
-#if PY_VERSION_HEX >= 0x03030000 || PY_VERSION_HEX < 0x03000000
-#  define SWIG_Python_str_DelForPy3(x)
-#else
-#  define SWIG_Python_str_DelForPy3(x) free( (void*) (x) )
-#endif
-
 
 SWIGINTERN PyObject*
 SWIG_Python_str_FromChar(const char *c)
@@ -73,10 +59,6 @@ SWIG_Python_str_FromChar(const char *c)
   return PyString_FromString(c);
 #endif
 }
-
-#ifndef PyObject_DEL
-# define PyObject_DEL PyObject_Del
-#endif
 
 /* SWIGPY_USE_CAPSULE is no longer used within SWIG itself, but some user interface files check for it. */
 # define SWIGPY_USE_CAPSULE
@@ -91,4 +73,31 @@ SWIG_Python_str_FromChar(const char *c)
 #define PyDescr_TYPE(x) (((PyDescrObject *)(x))->d_type)
 #define PyDescr_NAME(x) (((PyDescrObject *)(x))->d_name)
 #define Py_hash_t long
+#endif
+
+#ifdef Py_LIMITED_API
+# define PyTuple_GET_ITEM PyTuple_GetItem
+/* Note that PyTuple_SetItem() has different semantics from PyTuple_SET_ITEM as it decref's the original tuple item, so in general they cannot be used
+  interchangeably. However in SWIG-generated code PyTuple_SET_ITEM is only used with newly initialized tuples without any items and for them this does work. */
+# define PyTuple_SET_ITEM PyTuple_SetItem
+# define PyTuple_GET_SIZE PyTuple_Size
+# define PyCFunction_GET_FLAGS PyCFunction_GetFlags
+# define PyCFunction_GET_FUNCTION PyCFunction_GetFunction
+# define PyCFunction_GET_SELF PyCFunction_GetSelf
+# define PyList_GET_ITEM PyList_GetItem
+# define PyList_SET_ITEM PyList_SetItem
+# define PySliceObject PyObject
+#endif
+
+/* Increment and Decrement wrappers - for portability when using the stable abi and for performance otherwise */
+#ifdef Py_LIMITED_API
+# define SWIG_Py_INCREF Py_IncRef
+# define SWIG_Py_XINCREF Py_IncRef
+# define SWIG_Py_DECREF Py_DecRef
+# define SWIG_Py_XDECREF Py_DecRef
+#else
+# define SWIG_Py_INCREF Py_INCREF
+# define SWIG_Py_XINCREF Py_XINCREF
+# define SWIG_Py_DECREF Py_DECREF
+# define SWIG_Py_XDECREF Py_XDECREF
 #endif

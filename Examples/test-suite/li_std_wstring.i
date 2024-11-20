@@ -3,7 +3,7 @@
 // The languages below are yet to provide std_wstring.i
 #if !(defined(SWIGD) || defined(SWIGGO) || defined(SWIGGUILE) || defined(SWIGJAVASCRIPT) || defined(SWIGLUA) || defined(SWIGMZSCHEME) || defined(SWIGOCAML) || defined(SWIGOCTAVE) || defined(SWIGPERL) || defined(SWIGPHP) || defined(SWIGR) || defined(SWIGSCILAB))
 
-%warnfilter(SWIGWARN_TYPEMAP_WCHARLEAK_MSG) wchar_t_const_ptr_member;  // Setting a const wchar_t * variable may leak memory.
+%warnfilter(SWIGWARN_TYPEMAP_WCHARLEAK) wchar_t_const_ptr_member;  // Setting a const wchar_t * variable may leak memory.
 
 %include <std_wstring.i>
 
@@ -23,7 +23,7 @@
 #include <string>
 #include <iostream>
 
-bool debug = false;
+bool trace = false;
 
 void show_wstring_bytes(const std::wstring &s) {
   unsigned char *p = (unsigned char *)s.data();
@@ -59,7 +59,7 @@ wchar_t* test_wchar_overload(wchar_t *x) {
 }
 
 std::wstring test_value(std::wstring x) {
-  if (debug) {
+  if (trace) {
     std::wcout << "received(C++): " /*<< x */<< std::endl;
     show_wstring_bytes(x);
   }
@@ -80,7 +80,7 @@ void test_reference(std::wstring &x) {
 }
 
 bool test_equal(const wchar_t *wcs, const std::wstring& s) {
-  if (debug) {
+  if (trace) {
     show_wstring_bytes(wcs);
     show_wstring_bytes(s);
   }

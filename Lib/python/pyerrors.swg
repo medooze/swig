@@ -39,6 +39,9 @@ SWIG_Python_ErrorType(int code) {
   case SWIG_AttributeError:
     type = PyExc_AttributeError;
     break;
+  case SWIG_NullReferenceError:
+    type = PyExc_TypeError;
+    break;
   default:
     type = PyExc_RuntimeError;
   }
@@ -57,16 +60,17 @@ SWIG_Python_AddErrorMsg(const char* mesg)
     PyErr_Fetch(&type, &value, &traceback);
   if (value) {
     PyObject *old_str = PyObject_Str(value);
-    const char *tmp = SWIG_Python_str_AsChar(old_str);
+    PyObject *bytes = NULL;
+    const char *tmp = SWIG_PyUnicode_AsUTF8AndSize(old_str, NULL, &bytes);
     PyErr_Clear();
-    Py_XINCREF(type);
+    SWIG_Py_XINCREF(type);
     if (tmp)
       PyErr_Format(type, "%s %s", tmp, mesg);
     else
       PyErr_Format(type, "%s", mesg);
-    SWIG_Python_str_DelForPy3(tmp);
-    Py_DECREF(old_str);
-    Py_DECREF(value);
+    SWIG_Py_XDECREF(bytes);
+    SWIG_Py_DECREF(old_str);
+    SWIG_Py_DECREF(value);
   } else {
     PyErr_SetString(PyExc_RuntimeError, mesg);
   }
@@ -96,7 +100,7 @@ SWIG_Python_RaiseOrModifyTypeError(const char *message)
     newvalue = PyString_FromFormat("%s\nAdditional information:\n%s", PyString_AsString(value), message);
 #endif
     if (newvalue) {
-      Py_XDECREF(value);
+      SWIG_Py_XDECREF(value);
       PyErr_Restore(type, newvalue, traceback);
     } else {
       PyErr_Restore(type, value, traceback);

@@ -4,7 +4,7 @@
  * terms also apply to certain portions of SWIG. The full details of the SWIG
  * license and copyrights can be found in the LICENSE and COPYRIGHT files
  * included with the SWIG source code as distributed by the SWIG developers
- * and at http://www.swig.org/legal.html.
+ * and at https://www.swig.org/legal.html.
  *
  * guile.cxx
  *
@@ -12,6 +12,7 @@
  * ----------------------------------------------------------------------------- */
 
 #include "swigmod.h"
+#include <assert.h>
 #include <ctype.h>
 
 // Note string broken in half for compilers that can't handle long strings
@@ -27,9 +28,7 @@ Guile Options (available with -guile)\n\
                                Use `module' for native Guile module linking\n\
                                (requires Guile >= 1.5.0).  Use `passive' for\n\
                                passive linking (no C-level module-handling code),\n\
-                               `ltdlmod' for Guile's old dynamic module\n\
-                               convention (Guile <= 1.4), or `hobbit' for hobbit\n\
-                               modules.\n\
+                               or `hobbit' for hobbit modules.\n\
      -onlysetters            - Don't emit traditional getter and setter\n\
                                procedures for structure slots,\n\
                                only emit procedures-with-setters.\n\
@@ -61,7 +60,6 @@ static enum {
   GUILE_LSTYLE_SIMPLE,		// call `SWIG_init()'
   GUILE_LSTYLE_PASSIVE,		// passive linking (no module code)
   GUILE_LSTYLE_MODULE,		// native guile module linking (Guile >= 1.4.1)
-  GUILE_LSTYLE_LTDLMOD_1_4,	// old (Guile <= 1.4) dynamic module convention
   GUILE_LSTYLE_HOBBIT		// use (hobbit4d link)
 } linkage = GUILE_LSTYLE_SIMPLE;
 
@@ -108,8 +106,8 @@ static int exportprimitive = 0;	// -exportprimitive argument
 static String *memberfunction_name = 0;
 
 extern "C" {
-  static int has_classname(Node *class_node) {
-    return Getattr(class_node, "guile:goopsclassname") ? 1 : 0;
+  static Node *has_classname(Node *class_node) {
+    return Getattr(class_node, "guile:goopsclassname") ? class_node : 0;
   }
 }
 
@@ -124,7 +122,6 @@ public:
     int i;
 
      SWIG_library_directory("guile");
-     SWIG_typemap_lang("guile");
 
     // Look for certain command line options
     for (i = 1; i < argc; i++) {
@@ -152,9 +149,7 @@ public:
 	  }
 	} else if (strcmp(argv[i], "-Linkage") == 0 || strcmp(argv[i], "-linkage") == 0) {
 	  if (argv[i + 1]) {
-	    if (0 == strcmp(argv[i + 1], "ltdlmod"))
-	      linkage = GUILE_LSTYLE_LTDLMOD_1_4;
-	    else if (0 == strcmp(argv[i + 1], "hobbit"))
+	    if (0 == strcmp(argv[i + 1], "hobbit"))
 	      linkage = GUILE_LSTYLE_HOBBIT;
 	    else if (0 == strcmp(argv[i + 1], "simple"))
 	      linkage = GUILE_LSTYLE_SIMPLE;
@@ -210,12 +205,6 @@ public:
 	  Swig_mark_arg(i);
 	} else if ((strcmp(argv[i], "-shadow") == 0) || ((strcmp(argv[i], "-proxy") == 0))) {
 	  goops = true;
-	  Swig_mark_arg(i);
-	} else if (strcmp(argv[i], "-gh") == 0) {
-	  Printf(stderr, "Deprecated command line option: -gh. Wrappers are always generated for the SCM interface. See documentation for more information regarding the deprecated GH interface.\n");
-	  Swig_mark_arg(i);
-	} else if (strcmp(argv[i], "-scm") == 0) {
-	  Printf(stderr, "Deprecated command line option: -scm. Wrappers are always generated for the SCM interface. See documentation for more information regarding the deprecated GH interface.\n");
 	  Swig_mark_arg(i);
 	} else if (strcmp(argv[i], "-primsuffix") == 0) {
 	  if (argv[i + 1]) {
@@ -321,7 +310,7 @@ public:
 
     Swig_banner(f_begin);
 
-    Printf(f_runtime, "\n\n#ifndef SWIGGUILE\n#define SWIGGUILE\n#endif\n\n");
+    Swig_obligatory_macros(f_runtime, "GUILE");
 
     /* Write out directives and declarations */
 
@@ -420,21 +409,6 @@ public:
       Printf(f_init, "  return SCM_UNSPECIFIED;\n");
       Printf(f_init, "}\n");
       break;
-    case GUILE_LSTYLE_LTDLMOD_1_4:
-      Printf(f_init, "\n/* Linkage: ltdlmod */\n");
-      Replaceall(module_func, "/", "_");
-      Insert(module_func, 0, "scm_init_");
-      Append(module_func, "_module");
-      Printf(f_init, "SCM\n%s (void)\n{\n", module_func);
-      {
-	String *mod = NewString(module_name);
-	Replaceall(mod, "/", " ");
-	Printf(f_init, "    scm_register_module_xxx (\"%s\", (void *) SWIG_init);\n", mod);
-	Printf(f_init, "    return SCM_UNSPECIFIED;\n");
-	Delete(mod);
-      }
-      Printf(f_init, "}\n");
-      break;
     case GUILE_LSTYLE_MODULE:
       Printf(f_init, "\n/* Linkage: module */\n");
       Replaceall(module_func, "/", "_");
@@ -475,7 +449,7 @@ public:
       Printf(f_init, "}\n");
       break;
     default:
-      fputs("Fatal internal error: Invalid Guile linkage setting.\n", stderr);
+      Printf(stderr, "Internal error: Invalid Guile linkage setting.\n");
       Exit(EXIT_FAILURE);
     }
 
@@ -634,7 +608,7 @@ public:
 
   virtual int functionWrapper(Node *n) {
     String *iname = Getattr(n, "sym:name");
-    SwigType *d = Getattr(n, "type");
+    SwigType *returntype = Getattr(n, "type");
     ParmList *l = Getattr(n, "parms");
     Parm *p;
     String *proc_name = 0;
@@ -758,8 +732,7 @@ public:
 	if (goops) {
 	  if (i < numreq) {
 	    if (strcmp("void", Char(pt)) != 0) {
-	      Node *class_node = Swig_symbol_clookup_check(pb, Getattr(n, "sym:symtab"),
-							   has_classname);
+	      Node *class_node = Swig_symbol_clookup_check(pb, Getattr(n, "sym:symtab"), has_classname);
 	      String *goopsclassname = !class_node ? NULL : Getattr(class_node, "guile:goopsclassname");
 	      /* do input conversion */
 	      if (goopsclassname) {
@@ -858,9 +831,9 @@ public:
 	Replaceall(tm, "$owner", "0");
       Printv(f->code, tm, "\n", NIL);
     } else {
-      throw_unhandled_guile_type_error(d);
+      throw_unhandled_guile_type_error(returntype);
     }
-    emit_return_variable(n, d, f);
+    emit_return_variable(n, returntype, f);
 
     // Documentation
     if ((tm = Getattr(n, "tmap:out:doc"))) {
@@ -870,7 +843,7 @@ public:
       else
 	num_results = 0;
     } else {
-      String *s = SwigType_str(d, 0);
+      String *s = SwigType_str(returntype, 0);
       Chop(s);
       Printf(returns, "<%s>", s);
       Delete(s);
@@ -902,10 +875,13 @@ public:
       Printv(f->code, beforereturn, "\n", NIL);
     Printv(f->code, "return gswig_result;\n", NIL);
 
+    bool isvoid = !Cmp(returntype, "void");
+    Replaceall(f->code, "$isvoid", isvoid ? "1" : "0");
+
     /* Substitute the function name */
     Replaceall(f->code, "$symname", iname);
-    // Undefine the scheme name
 
+    // Undefine the scheme name
     Printf(f->code, "#undef FUNC_NAME\n");
     Printf(f->code, "}\n");
 
@@ -913,8 +889,12 @@ public:
 
     if (!Getattr(n, "sym:overloaded")) {
       if (numargs > 10) {
+	/* "The total number of these arguments should match the actual number
+	 * of arguments to fcn, but may not exceed 10" says:
+	 * https://www.gnu.org/software/guile/manual/html_node/Primitive-Procedures.html
+	 * We handle this case by passing all the arguments as "rest".
+	 */
 	int i;
-	/* gh_new_procedure would complain: too many args */
 	/* Build a wrapper wrapper */
 	Printv(f_wrappers, "static SCM\n", wname, "_rest (SCM rest)\n", NIL);
 	Printv(f_wrappers, "{\n", NIL);
@@ -1112,8 +1092,9 @@ public:
     Replaceall(proc_name, "_", "-");
     Setattr(n, "wrap:name", proc_name);
 
-    if (1 || (SwigType_type(t) != T_USER) || (is_a_pointer(t))) {
+    int assignable = !is_immutable(n);
 
+    {
       Printf(f->def, "static SCM\n%s(SCM s_0)\n{\n", var_name);
 
       /* Define the scheme name in C. This define is used by several Guile
@@ -1122,7 +1103,7 @@ public:
 
       Wrapper_add_local(f, "gswig_result", "SCM gswig_result");
 
-      if (!GetFlag(n, "feature:immutable")) {
+      if (assignable) {
 	/* Check for a setting of the variable value */
 	Printf(f->code, "if (s_0 != SCM_UNDEFINED) {\n");
 	if ((tm = Swig_typemap_lookup("varin", n, name, 0))) {
@@ -1130,6 +1111,8 @@ public:
 	  /* Printv(f->code,tm,"\n",NIL); */
 	  emit_action_code(n, f->code, tm);
 	} else {
+	  // The fake variable constantWrapper() creates is immutable.
+	  assert(!GetFlag(n, "guile:reallywrappingaconstant"));
 	  throw_unhandled_guile_type_error(t);
 	}
 	Printf(f->code, "}\n");
@@ -1142,6 +1125,12 @@ public:
 	/* Printv(f->code,tm,"\n",NIL); */
 	emit_action_code(n, f->code, tm);
       } else {
+	if (GetFlag(n, "guile:reallywrappingaconstant")) {
+	  Delete(var_name);
+	  Delete(proc_name);
+	  DelWrapper(f);
+	  return SWIG_ERROR;
+	}
 	throw_unhandled_guile_type_error(t);
       }
       Printf(f->code, "\nreturn gswig_result;\n");
@@ -1152,7 +1141,7 @@ public:
 
       // Now add symbol to the Guile interpreter
 
-      if (!emit_setters || GetFlag(n, "feature:immutable")) {
+      if (!emit_setters || !assignable) {
 	/* Read-only variables become a simple procedure returning the
 	   value; read-write variables become a simple procedure with
 	   an optional argument. */
@@ -1161,7 +1150,7 @@ public:
 	  /* need to export this function as a variable instead of a procedure */
 	  if (scmstub) {
 	    /* export the function in the wrapper, and (set!) it in scmstub */
-	    Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, !GetFlag(n, "feature:immutable"), var_name);
+	    Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, assignable, var_name);
 	    Printf(scmtext, "(set! %s (%s))\n", proc_name, proc_name);
 	  } else {
 	    /* export the variable directly */
@@ -1170,7 +1159,7 @@ public:
 
 	} else {
 	  /* Export the function as normal */
-	  Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, !GetFlag(n, "feature:immutable"), var_name);
+	  Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, assignable, var_name);
 	}
 
       } else {
@@ -1190,7 +1179,7 @@ public:
 	  Printv(primitive_name, "primitive:", NIL);
 	Printv(primitive_name, proc_name, NIL);
 	/* Simply re-export the procedure */
-	if ((!emit_setters || GetFlag(n, "feature:immutable"))
+	if ((!emit_setters || !assignable)
 	    && GetFlag(n, "feature:constasvar")) {
 	  Printv(goopscode, "(define ", goops_name, " (", primitive_name, "))\n", NIL);
 	} else {
@@ -1208,7 +1197,7 @@ public:
 	String *signature2 = NULL;
 	String *doc = NewString("");
 
-	if (GetFlag(n, "feature:immutable")) {
+	if (!assignable) {
 	  Printv(signature, proc_name, NIL);
 	  if (GetFlag(n, "feature:constasvar")) {
 	    Printv(doc, "Is constant ", NIL);
@@ -1260,9 +1249,6 @@ public:
 	  Delete(signature2);
 	Delete(doc);
       }
-
-    } else {
-      Swig_warning(WARN_TYPEMAP_VAR_UNDEF, input_file, line_number, "Unsupported variable type %s (ignored).\n", SwigType_str(t, 0));
     }
     Delete(var_name);
     Delete(proc_name);
@@ -1280,8 +1266,7 @@ public:
     char *name = GetChar(n, "name");
     char *iname = GetChar(n, "sym:name");
     SwigType *type = Getattr(n, "type");
-    String *rawval = Getattr(n, "rawval");
-    String *value = rawval ? rawval : Getattr(n, "value");
+    String *value = Getattr(n, "value");
     int constasvar = GetFlag(n, "feature:constasvar");
 
 
@@ -1306,12 +1291,6 @@ public:
     proc_name = NewString(iname);
     Replaceall(proc_name, "_", "-");
 
-    if ((SwigType_type(nctype) == T_USER) && (!is_a_pointer(nctype))) {
-      Swig_warning(WARN_TYPEMAP_CONST_UNDEF, input_file, line_number, "Unsupported constant value.\n");
-      Delete(var_name);
-      DelWrapper(f);
-      return SWIG_NOWRAP;
-    }
     // See if there's a typemap
 
     if ((tm = Swig_typemap_lookup("constant", n, name, 0))) {
@@ -1321,7 +1300,8 @@ public:
       // Create variable and assign it a value
       Printf(f_header, "static %s = (%s)(%s);\n", SwigType_str(type, var_name), SwigType_str(type, 0), value);
     }
-    {
+    int result = SWIG_OK;
+    if (Len(nctype) > 0) {
       /* Hack alert: will cleanup later -- Dave */
       Node *nn = NewHash();
       Setfile(nn, Getfile(n));
@@ -1333,14 +1313,22 @@ public:
       if (constasvar) {
 	SetFlag(nn, "feature:constasvar");
       }
-      variableWrapper(nn);
+      SetFlag(nn, "guile:reallywrappingaconstant");
+      if (variableWrapper(nn) == SWIG_ERROR) {
+	Swig_warning(WARN_TYPEMAP_CONST_UNDEF, input_file, line_number, "Unsupported constant value.\n");
+	result = SWIG_NOWRAP;
+      }
+
       Delete(nn);
+    } else {
+      Swig_warning(WARN_TYPEMAP_CONST_UNDEF, input_file, line_number, "Unsupported constant value.\n");
+      result = SWIG_NOWRAP;
     }
     Delete(var_name);
     Delete(nctype);
     Delete(proc_name);
     DelWrapper(f);
-    return SWIG_OK;
+    return result;
   }
 
   /* ------------------------------------------------------------
@@ -1396,7 +1384,7 @@ public:
     SwigType *ct = NewStringf("p.%s", Getattr(n, "name"));
     swigtype_ptr = SwigType_manglestr(ct);
 
-    String *mangled_classname = Swig_name_mangle(Getattr(n, "sym:name"));
+    String *mangled_classname = Swig_name_mangle_string(Getattr(n, "sym:name"));
     /* Export clientdata structure */
     Printf(f_runtime, "static swig_guile_clientdata _swig_guile_clientdata%s = { NULL, SCM_EOL };\n", mangled_classname);
 

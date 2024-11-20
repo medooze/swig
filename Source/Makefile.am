@@ -18,11 +18,12 @@ AM_CPPFLAGS =	-I$(BUILD_SOURCE_DIR)/Include	\
 
 AM_CXXFLAGS =
 
-AM_YFLAGS = -d
+AM_YFLAGS = -d -Wall -Werror
 
-BUILT_SOURCES = CParse/parser.h
+
+BUILT_SOURCES = CParse/parser.c CParse/parser.h
 eswig_SOURCES =	CParse/cscanner.c		\
-		CParse/parser.y			\
+		CParse/parser.c			\
 		CParse/templ.c			\
 		CParse/util.c			\
 		DOH/base.c			\
@@ -33,6 +34,8 @@ eswig_SOURCES =	CParse/cscanner.c		\
 		DOH/memory.c			\
 		DOH/string.c			\
 		DOH/void.c			\
+		Doxygen/csharpdoc.cxx		\
+		Doxygen/csharpdoc.h		\
 		Doxygen/doxyentity.cxx		\
 		Doxygen/doxyentity.h		\
 		Doxygen/doxyparser.cxx		\
@@ -45,6 +48,7 @@ eswig_SOURCES =	CParse/cscanner.c		\
 		Doxygen/pydoc.h			\
 		Modules/allocate.cxx		\
 		Modules/contract.cxx		\
+		Modules/c.cxx		\
 		Modules/csharp.cxx		\
 		Modules/d.cxx			\
 		Modules/directors.cxx		\
@@ -96,8 +100,8 @@ eswig_SOURCES =	CParse/cscanner.c		\
 
 bin_PROGRAMS = eswig
 
-# Override the link stage to avoid using Libtool
-CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+CParse/parser.c CParse/parser.h: CParse/parser.y
+	$(BISON) $(AM_YFLAGS) $(YFLAGS) --output=CParse/parser.c $(srcdir)/CParse/parser.y
 
 # The executable is copied to the root directory for installation and running the test-suite.
 # This occurs on each invocation of make and is a step towards providing support for multiple
@@ -119,7 +123,7 @@ distclean-local:
 # swig executable as a way of checking before and after the 'beautifying'.
 # Single files can be beautified with the beautify-file target, eg: 'make beautify-file INDENTFILE=chosenfile.c'
 
-SWIGTYPEDEFS=-T bool -T File -T DohObjInfo -T Parm -T Language -T List -T TargetLanguageModule -T Typetab -T ModuleFactory -T ErrorMessageFormat -T Symtab -T Hash -T Scanner -T String -T DohBase -T Node -T String_or_char -T SwigType -T Dispatcher -T Wrapper -T DohStringMethods -T DohFileMethods -T DohListMethods -T DohHashMethods -T DOH -T DohIterator -T ParmList -T FILE -T HashNode -T DOHObj_or_char -T DOHFile -T DOHString -T DOHString_or_char -T UpcallData
+SWIGTYPEDEFS=-T bool -T File -T DohObjInfo -T Parm -T Language -T List -T TargetLanguageModule -T Typetab -T ModuleFactory -T ErrorMessageFormat -T Symtab -T Hash -T Scanner -T String -T DohBase -T Node -T String_or_char -T SwigType -T Dispatcher -T Wrapper -T DohStringMethods -T DohFileMethods -T DohListMethods -T DohHashMethods -T DOH -T DohIterator -T ParmList -T FILE -T HashNode -T DOHObj_or_char -T DOHFile -T DOHString -T DOHString_or_char -T UpcallData -T DoxygenEntity -T string
 INDENTBAKSDIR=../IndentBaks
 
 beautify:
